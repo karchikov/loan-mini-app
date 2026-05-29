@@ -22,6 +22,7 @@ import { initTelegram } from "./utils/telegram";
 function App() {
   const [appLoading, setAppLoading] = useState(true);
   const [globalError, setGlobalError] = useState("");
+  const [telegramDebug, setTelegramDebug] = useState(null);
 
   const {
     user,
@@ -79,10 +80,32 @@ function App() {
     clearLoans();
   }
 
+  function buildTelegramDebug() {
+    const tg =
+      window.Telegram?.WebApp;
+
+    return {
+      hasTelegram: !!window.Telegram,
+      hasWebApp: !!tg,
+      initDataLength: tg?.initData?.length || 0,
+      platform: tg?.platform || "none",
+      version: tg?.version || "none",
+      userId: tg?.initDataUnsafe?.user?.id || null,
+      username: tg?.initDataUnsafe?.user?.username || null,
+      firstName: tg?.initDataUnsafe?.user?.first_name || null,
+    };
+  }
+
   useEffect(() => {
     async function initialize() {
       try {
         initTelegram();
+
+        const debug = buildTelegramDebug();
+        setTelegramDebug(debug);
+
+        console.log("Telegram debug:", debug);
+        console.log("Telegram WebApp:", window.Telegram?.WebApp);
 
         const token = authStore.getToken();
 
@@ -131,6 +154,25 @@ function App() {
       {globalError && (
         <div className="global-error">
           {globalError}
+        </div>
+      )}
+
+      {!user && (
+        <div className="card">
+          <h3>Telegram Debug</h3>
+
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              fontSize: "12px",
+            }}
+          >
+            {JSON.stringify(
+              telegramDebug,
+              null,
+              2
+            )}
+          </pre>
         </div>
       )}
 
