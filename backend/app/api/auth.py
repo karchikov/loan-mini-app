@@ -1,27 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import LoginResponse
 from app.services.auth import create_access_token
-from app.services.telegram_auth import (
-    validate_telegram_init_data,
-)
+from app.services.telegram_auth import validate_telegram_init_data
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/dev-login", response_model=LoginResponse)
-async def dev_login(
+def dev_login(
     telegram_id: int,
     username: str | None = None,
     first_name: str | None = None,
     last_name: str | None = None,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
-    result = await db.execute(
+    result = db.execute(
         select(User).where(User.telegram_id == telegram_id)
     )
 
@@ -31,15 +29,13 @@ async def dev_login(
         user = User(
             telegram_id=telegram_id,
             username=username,
-            first_name=first_name,
+            first_name=first_name or "Dev",
             last_name=last_name,
         )
 
         db.add(user)
-
-        await db.commit()
-
-        await db.refresh(user)
+        db.commit()
+        db.refresh(user)
 
     access_token = create_access_token(
         data={"sub": str(user.id)}
@@ -53,14 +49,12 @@ async def dev_login(
 
 
 @router.post("/telegram", response_model=LoginResponse)
-async def telegram_login(
+def telegram_login(
     init_data: str,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     try:
-        telegram_user = validate_telegram_init_data(
-            init_data
-        )
+        telegram_user = validate_telegram_init_data(init_data)
 
     except Exception as error:
         raise HTTPException(
@@ -70,10 +64,8 @@ async def telegram_login(
 
     telegram_id = telegram_user["id"]
 
-    result = await db.execute(
-        select(User).where(
-            User.telegram_id == telegram_id
-        )
+    result = db.execute(
+        select(User).where(User.telegram_id == telegram_id)
     )
 
     user = result.scalar_one_or_none()
@@ -82,34 +74,22 @@ async def telegram_login(
         user = User(
             telegram_id=telegram_user["id"],
             username=telegram_user.get("username"),
-            first_name=telegram_user.get(
-                "first_name",
-                "Telegram",
-            ),
-            last_name=telegram_user.get(
-                "last_name"
-            ),
+            first_name=telegram_user.get("first_name", "Telegram"),
+            last_name=telegram_user.get("last_name"),
         )
 
         db.add(user)
 
     else:
-        user.username = telegram_user.get(
-            "username"
-        )
-
+        user.username = telegram_user.get("username")
         user.first_name = telegram_user.get(
             "first_name",
             user.first_name,
         )
+        user.last_name = telegram_user.get("last_name")
 
-        user.last_name = telegram_user.get(
-            "last_name"
-        )
-
-    await db.commit()
-
-    await db.refresh(user)
+    db.commit()
+    db.refresh(user)
 
     access_token = create_access_token(
         data={"sub": str(user.id)}
