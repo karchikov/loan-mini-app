@@ -80,38 +80,73 @@ function App() {
   }
 
   useEffect(() => {
-    initTelegram();
+    async function initialize() {
+      try {
+        initTelegram();
 
-    const token = authStore.getToken();
+        const token = authStore.getToken();
 
-    if (token) {
-      bootstrap();
-    } else {
-      setAppLoading(false);
+        if (token) {
+          await bootstrap();
+          return;
+        }
+
+        const tg =
+          window.Telegram?.WebApp;
+
+        if (tg?.initData) {
+          const profile =
+            await login();
+
+          if (profile) {
+            await loadLoans();
+          }
+        }
+      } catch (error) {
+        console.error(error);
+
+        setGlobalError(
+          "Telegram login failed"
+        );
+      } finally {
+        setAppLoading(false);
+      }
     }
+
+    initialize();
   }, []);
 
   if (appLoading) {
     return <LoadingScreen />;
   }
 
+  const isTelegram =
+    !!window.Telegram?.WebApp?.initData;
+
   return (
-    <MainLayout user={user} onLogout={handleLogout}>
+    <MainLayout
+      user={user}
+      onLogout={handleLogout}
+    >
       {globalError && (
         <div className="global-error">
           {globalError}
         </div>
       )}
 
-      {!user && (
+      {!user && !isTelegram && (
         <div className="card">
           <button
             className="full-width"
             onClick={() => handleLogin("roman")}
             disabled={loading}
-            style={{ marginBottom: "10px" }}
+            style={{
+              marginBottom: "10px",
+            }}
           >
-            {loading ? "Loading..." : "Login Roman"}
+            {loading
+              ? "Loading..."
+              : "Login Roman"}
           </button>
 
           <button
@@ -119,7 +154,9 @@ function App() {
             onClick={() => handleLogin("sixx")}
             disabled={loading}
           >
-            {loading ? "Loading..." : "Login Sixx"}
+            {loading
+              ? "Loading..."
+              : "Login Sixx"}
           </button>
         </div>
       )}
@@ -130,7 +167,9 @@ function App() {
             path="/"
             element={
               <>
-                <CreateLoanForm onCreate={create} />
+                <CreateLoanForm
+                  onCreate={create}
+                />
 
                 <LoansPage
                   loans={loans}
@@ -147,7 +186,12 @@ function App() {
 
           <Route
             path="*"
-            element={<Navigate to="/" replace />}
+            element={
+              <Navigate
+                to="/"
+                replace
+              />
+            }
           />
         </Routes>
       )}
