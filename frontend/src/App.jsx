@@ -58,11 +58,11 @@ function App() {
     }
   }
 
-  async function handleLogin() {
+  async function handleLogin(devUser) {
     try {
       setGlobalError("");
 
-      const profile = await login();
+      const profile = await login(devUser);
 
       if (profile) {
         await loadLoans();
@@ -107,10 +107,19 @@ function App() {
         <div className="card">
           <button
             className="full-width"
-            onClick={handleLogin}
+            onClick={() => handleLogin("roman")}
+            disabled={loading}
+            style={{ marginBottom: "10px" }}
+          >
+            {loading ? "Loading..." : "Login Roman"}
+          </button>
+
+          <button
+            className="full-width"
+            onClick={() => handleLogin("sixx")}
             disabled={loading}
           >
-            {loading ? "Loading..." : "Dev Login"}
+            {loading ? "Loading..." : "Login Sixx"}
           </button>
         </div>
       )}

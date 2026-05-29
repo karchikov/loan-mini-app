@@ -29,7 +29,7 @@ export function useAuth() {
     }
   }
 
-  async function login() {
+  async function login(devUser = "roman") {
     try {
       setLoading(true);
 
@@ -44,12 +44,21 @@ export function useAuth() {
             tg.initData
           );
       } else {
-        data = await devLogin({
-          telegram_id: 123456,
-          username: "roman",
-          first_name: "Roman",
-          last_name: "Karchikov",
-        });
+        if (devUser === "sixx") {
+          data = await devLogin({
+            telegram_id: 654321,
+            username: "sixx",
+            first_name: "Sixx",
+            last_name: "Borrower",
+          });
+        } else {
+          data = await devLogin({
+            telegram_id: 123456,
+            username: "roman",
+            first_name: "Roman",
+            last_name: "Karchikov",
+          });
+        }
       }
 
       authStore.setToken(
