@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.loan import Loan, LoanStatus
 from app.models.repayment import Repayment
@@ -10,11 +10,11 @@ from app.models.user import User
 from app.schemas.loan import LoanCreate, RepaymentCreate
 
 
-async def calculate_remaining_balance(
-    db: AsyncSession,
+def calculate_remaining_balance(
+    db: Session,
     loan: Loan,
 ) -> Decimal:
-    result = await db.execute(
+    result = db.execute(
         select(
             func.coalesce(
                 func.sum(Repayment.amount),
@@ -35,11 +35,11 @@ async def calculate_remaining_balance(
     return remaining
 
 
-async def enrich_loan_with_balance(
-    db: AsyncSession,
+def enrich_loan_with_balance(
+    db: Session,
     loan: Loan,
 ):
-    loan.remaining_balance = await calculate_remaining_balance(
+    loan.remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
     )
@@ -47,8 +47,8 @@ async def enrich_loan_with_balance(
     return loan
 
 
-async def create_loan(
-    db: AsyncSession,
+def create_loan(
+    db: Session,
     loan_data: LoanCreate,
     current_user: User,
 ) -> Loan:
@@ -58,7 +58,7 @@ async def create_loan(
             detail="You cannot create a loan to yourself",
         )
 
-    borrower_result = await db.execute(
+    borrower_result = db.execute(
         select(User).where(
             User.id == loan_data.borrower_id
         )
@@ -83,21 +83,20 @@ async def create_loan(
     )
 
     db.add(loan)
+    db.commit()
+    db.refresh(loan)
 
-    await db.commit()
-    await db.refresh(loan)
-
-    return await enrich_loan_with_balance(
+    return enrich_loan_with_balance(
         db=db,
         loan=loan,
     )
 
 
-async def get_user_loans(
-    db: AsyncSession,
+def get_user_loans(
+    db: Session,
     current_user: User,
 ):
-    result = await db.execute(
+    result = db.execute(
         select(Loan).where(
             or_(
                 Loan.lender_id == current_user.id,
@@ -111,7 +110,7 @@ async def get_user_loans(
     enriched_loans = []
 
     for loan in loans:
-        enriched_loan = await enrich_loan_with_balance(
+        enriched_loan = enrich_loan_with_balance(
             db=db,
             loan=loan,
         )
@@ -121,12 +120,12 @@ async def get_user_loans(
     return enriched_loans
 
 
-async def get_loan_by_id(
-    db: AsyncSession,
+def get_loan_by_id(
+    db: Session,
     loan_id: int,
     current_user: User,
 ):
-    result = await db.execute(
+    result = db.execute(
         select(Loan).where(
             Loan.id == loan_id
         )
@@ -143,18 +142,18 @@ async def get_loan_by_id(
     ):
         return None
 
-    return await enrich_loan_with_balance(
+    return enrich_loan_with_balance(
         db=db,
         loan=loan,
     )
 
 
-async def confirm_loan(
-    db: AsyncSession,
+def confirm_loan(
+    db: Session,
     loan_id: int,
     current_user: User,
 ) -> Loan:
-    loan = await get_loan_by_id(
+    loan = get_loan_by_id(
         db=db,
         loan_id=loan_id,
         current_user=current_user,
@@ -180,21 +179,21 @@ async def confirm_loan(
 
     loan.status = LoanStatus.ACTIVE
 
-    await db.commit()
-    await db.refresh(loan)
+    db.commit()
+    db.refresh(loan)
 
-    return await enrich_loan_with_balance(
+    return enrich_loan_with_balance(
         db=db,
         loan=loan,
     )
 
 
-async def reject_loan(
-    db: AsyncSession,
+def reject_loan(
+    db: Session,
     loan_id: int,
     current_user: User,
 ) -> Loan:
-    loan = await get_loan_by_id(
+    loan = get_loan_by_id(
         db=db,
         loan_id=loan_id,
         current_user=current_user,
@@ -220,21 +219,21 @@ async def reject_loan(
 
     loan.status = LoanStatus.REJECTED
 
-    await db.commit()
-    await db.refresh(loan)
+    db.commit()
+    db.refresh(loan)
 
-    return await enrich_loan_with_balance(
+    return enrich_loan_with_balance(
         db=db,
         loan=loan,
     )
 
 
-async def mark_loan_as_paid(
-    db: AsyncSession,
+def mark_loan_as_paid(
+    db: Session,
     loan_id: int,
     current_user: User,
 ) -> Loan:
-    loan = await get_loan_by_id(
+    loan = get_loan_by_id(
         db=db,
         loan_id=loan_id,
         current_user=current_user,
@@ -261,7 +260,7 @@ async def mark_loan_as_paid(
             detail="Only active loan can be marked as paid",
         )
 
-    remaining_balance = await calculate_remaining_balance(
+    remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
     )
@@ -276,22 +275,22 @@ async def mark_loan_as_paid(
 
     loan.status = LoanStatus.PAID
 
-    await db.commit()
-    await db.refresh(loan)
+    db.commit()
+    db.refresh(loan)
 
-    return await enrich_loan_with_balance(
+    return enrich_loan_with_balance(
         db=db,
         loan=loan,
     )
 
 
-async def create_repayment(
-    db: AsyncSession,
+def create_repayment(
+    db: Session,
     loan_id: int,
     repayment_data: RepaymentCreate,
     current_user: User,
 ):
-    result = await db.execute(
+    result = db.execute(
         select(Loan)
         .where(Loan.id == loan_id)
         .with_for_update()
@@ -335,7 +334,7 @@ async def create_repayment(
             detail="Repayment amount must be greater than zero",
         )
 
-    paid_result = await db.execute(
+    paid_result = db.execute(
         select(
             func.coalesce(
                 func.sum(Repayment.amount),
@@ -372,21 +371,21 @@ async def create_repayment(
     else:
         loan.status = LoanStatus.PARTIALLY_PAID
 
-    await db.commit()
-    await db.refresh(loan)
+    db.commit()
+    db.refresh(loan)
 
-    return await enrich_loan_with_balance(
+    return enrich_loan_with_balance(
         db=db,
         loan=loan,
     )
 
 
-async def get_repayment_history(
-    db: AsyncSession,
+def get_repayment_history(
+    db: Session,
     loan_id: int,
     current_user: User,
 ):
-    loan = await get_loan_by_id(
+    loan = get_loan_by_id(
         db=db,
         loan_id=loan_id,
         current_user=current_user,
@@ -398,7 +397,7 @@ async def get_repayment_history(
             detail="Loan not found",
         )
 
-    result = await db.execute(
+    result = db.execute(
         select(Repayment)
         .where(
             Repayment.loan_id == loan.id
