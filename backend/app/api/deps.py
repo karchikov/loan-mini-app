@@ -1,7 +1,10 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import (
+    HTTPBearer,
+    HTTPAuthorizationCredentials,
+)
 from jose import JWTError, jwt
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.config import settings
@@ -11,9 +14,11 @@ from app.models.user import User
 security = HTTPBearer()
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db),
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(
+        security
+    ),
+    db: Session = Depends(get_db),
 ) -> User:
     token = credentials.credentials
 
@@ -38,7 +43,7 @@ async def get_current_user(
             detail="Invalid token",
         )
 
-    result = await db.execute(
+    result = db.execute(
         select(User).where(User.id == int(user_id))
     )
 
