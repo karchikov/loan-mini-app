@@ -233,13 +233,24 @@ def mark_loan_as_paid(
     loan_id: int,
     current_user: User,
 ) -> Loan:
-    loan = get_loan_by_id(
-        db=db,
-        loan_id=loan_id,
-        current_user=current_user,
+    result = db.execute(
+        select(Loan)
+        .where(Loan.id == loan_id)
+        .with_for_update()
     )
 
+    loan = result.scalar_one_or_none()
+
     if loan is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Loan not found",
+        )
+
+    if (
+        loan.lender_id != current_user.id
+        and loan.borrower_id != current_user.id
+    ):
         raise HTTPException(
             status_code=404,
             detail="Loan not found",
