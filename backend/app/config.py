@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     TELEGRAM_AUTH_EXPIRE_SECONDS: int = 86400
 
+    ENABLE_DEV_LOGIN: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

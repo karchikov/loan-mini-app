@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import LoginResponse
@@ -19,6 +20,12 @@ def dev_login(
     last_name: str | None = None,
     db: Session = Depends(get_db),
 ):
+    if not settings.ENABLE_DEV_LOGIN:
+        raise HTTPException(
+            status_code=404,
+            detail="Not found",
+        )
+
     result = db.execute(
         select(User).where(User.telegram_id == telegram_id)
     )
