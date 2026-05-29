@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LoanStatus(str, Enum):
@@ -19,7 +19,12 @@ class LoanStatus(str, Enum):
 
 class LoanBase(BaseModel):
     borrower_id: int
-    amount: Decimal
+
+    amount: Decimal = Field(
+        gt=0,
+        description="Loan amount must be greater than zero",
+    )
+
     currency: str = "RUB"
     description: str | None = None
     due_date: datetime | None = None
@@ -30,7 +35,10 @@ class LoanCreate(LoanBase):
 
 
 class RepaymentCreate(BaseModel):
-    amount: Decimal
+    amount: Decimal = Field(
+        gt=0,
+        description="Repayment amount must be greater than zero",
+    )
 
 
 class RepaymentResponse(BaseModel):
