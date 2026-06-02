@@ -1,6 +1,24 @@
 import { useState } from "react";
 
-function CreateLoanForm({ onCreate }) {
+function formatUserName(user) {
+  const nameParts = [
+    user.first_name,
+    user.last_name,
+  ].filter(Boolean);
+
+  const fullName = nameParts.join(" ");
+
+  if (user.username) {
+    return `${fullName || "User"} (@${user.username})`;
+  }
+
+  return fullName || `User #${user.id}`;
+}
+
+function CreateLoanForm({
+  users,
+  onCreate,
+}) {
   const [borrowerId, setBorrowerId] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -17,7 +35,7 @@ function CreateLoanForm({ onCreate }) {
     const amountValue = Number(amount);
 
     if (!borrowerIdValue || borrowerIdValue <= 0) {
-      setError("Borrower ID must be greater than 0");
+      setError("Select borrower");
       return;
     }
 
@@ -55,13 +73,24 @@ function CreateLoanForm({ onCreate }) {
       <h2>Create Loan</h2>
 
       <form onSubmit={handleSubmit}>
-        <input
-          type="number"
-          placeholder="Borrower ID"
+        <select
           value={borrowerId}
           onChange={(e) => setBorrowerId(e.target.value)}
           disabled={loading}
-        />
+        >
+          <option value="">
+            Select borrower
+          </option>
+
+          {users.map((user) => (
+            <option
+              key={user.id}
+              value={user.id}
+            >
+              {formatUserName(user)}
+            </option>
+          ))}
+        </select>
 
         <input
           type="number"

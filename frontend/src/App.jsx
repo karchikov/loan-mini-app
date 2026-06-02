@@ -13,6 +13,8 @@ import LoansPage from "./pages/LoansPage";
 import CreateLoanForm from "./components/CreateLoanForm";
 import LoadingScreen from "./components/LoadingScreen";
 
+import { getUsers } from "./api/users";
+
 import { useAuth } from "./hooks/useAuth";
 import { useLoans } from "./hooks/useLoans";
 
@@ -22,6 +24,7 @@ import { initTelegram } from "./utils/telegram";
 function App() {
   const [appLoading, setAppLoading] = useState(true);
   const [globalError, setGlobalError] = useState("");
+  const [users, setUsers] = useState([]);
 
   const {
     user,
@@ -42,12 +45,19 @@ function App() {
     clearLoans,
   } = useLoans();
 
+  async function loadUsers() {
+    const usersList = await getUsers();
+
+    setUsers(usersList);
+  }
+
   async function bootstrap() {
     try {
       setGlobalError("");
 
       await loadProfile();
       await loadLoans();
+      await loadUsers();
     } catch (error) {
       console.error(error);
 
@@ -60,6 +70,7 @@ function App() {
   function handleLogout() {
     logout();
     clearLoans();
+    setUsers([]);
   }
 
   useEffect(() => {
@@ -89,6 +100,7 @@ function App() {
 
         if (profile) {
           await loadLoans();
+          await loadUsers();
         }
       } catch (error) {
         console.error(error);
@@ -126,6 +138,7 @@ function App() {
             element={
               <>
                 <CreateLoanForm
+                  users={users}
                   onCreate={create}
                 />
 
