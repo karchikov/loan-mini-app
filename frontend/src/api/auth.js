@@ -1,17 +1,5 @@
 import client from "./client";
 
-export async function devLogin(data) {
-  const response = await client.post(
-    "/auth/dev-login",
-    null,
-    {
-      params: data,
-    }
-  );
-
-  return response.data;
-}
-
 export async function telegramLogin(
   initData
 ) {

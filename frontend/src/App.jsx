@@ -25,7 +25,6 @@ function App() {
 
   const {
     user,
-    loading,
     login,
     logout,
     loadProfile,
@@ -58,22 +57,6 @@ function App() {
     }
   }
 
-  async function handleLogin(devUser) {
-    try {
-      setGlobalError("");
-
-      const profile = await login(devUser);
-
-      if (profile) {
-        await loadLoans();
-      }
-    } catch (error) {
-      console.error(error);
-
-      setGlobalError("Login failed");
-    }
-  }
-
   function handleLogout() {
     logout();
     clearLoans();
@@ -94,13 +77,18 @@ function App() {
         const tg =
           window.Telegram?.WebApp;
 
-        if (tg?.initData) {
-          const profile =
-            await login();
+        if (!tg?.initData) {
+          setGlobalError(
+            "Open this app from Telegram"
+          );
 
-          if (profile) {
-            await loadLoans();
-          }
+          return;
+        }
+
+        const profile = await login();
+
+        if (profile) {
+          await loadLoans();
         }
       } catch (error) {
         console.error(error);
@@ -120,9 +108,6 @@ function App() {
     return <LoadingScreen />;
   }
 
-  const isTelegram =
-    !!window.Telegram?.WebApp?.initData;
-
   return (
     <MainLayout
       user={user}
@@ -131,33 +116,6 @@ function App() {
       {globalError && (
         <div className="global-error">
           {globalError}
-        </div>
-      )}
-
-      {!user && !isTelegram && (
-        <div className="card">
-          <button
-            className="full-width"
-            onClick={() => handleLogin("roman")}
-            disabled={loading}
-            style={{
-              marginBottom: "10px",
-            }}
-          >
-            {loading
-              ? "Loading..."
-              : "Login Roman"}
-          </button>
-
-          <button
-            className="full-width"
-            onClick={() => handleLogin("sixx")}
-            disabled={loading}
-          >
-            {loading
-              ? "Loading..."
-              : "Login Sixx"}
-          </button>
         </div>
       )}
 

@@ -1,24 +1,22 @@
-{
+
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzgwNDAwMjgwfQ.EVEu5E3pjzHOep-Sy1AVPvKDWv35FGQ7YfixskGG3NY",
-  "token_type": "bearer",
-  "user": {
     "id": 1,
     "telegram_id": 123456,
     "username": "roman",
     "first_name": "Roman",
     "last_name": "Karchikov"
 
-{
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNzgwNDA4MzcyfQ.LK8AjbrtAgJ8bo7xz5XicL8JJQH7KruSFEC1EV0fFJw",
-  "token_type": "bearer",
-  "user": {
     "id": 2,
     "telegram_id": 777777,
     "username": "borrower",
     "first_name": "Borrower",
     "last_name": "Test"
-  }
-}
+
+telegram_id: 654321
+username: sixx
+first_name: Sixx
+last_name: Borrower
 
 cd C:\LoanMiniApp\backend
 
