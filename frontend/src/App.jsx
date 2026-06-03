@@ -46,9 +46,15 @@ function App() {
   } = useLoans();
 
   async function loadUsers() {
-    const usersList = await getUsers();
+    try {
+      const usersList = await getUsers();
 
-    setUsers(usersList);
+      setUsers(usersList);
+    } catch (error) {
+      console.error(error);
+
+      setUsers([]);
+    }
   }
 
   async function bootstrap() {
@@ -57,7 +63,8 @@ function App() {
 
       await loadProfile();
       await loadLoans();
-      await loadUsers();
+
+      loadUsers();
     } catch (error) {
       console.error(error);
 
@@ -100,7 +107,8 @@ function App() {
 
         if (profile) {
           await loadLoans();
-          await loadUsers();
+
+          loadUsers();
         }
       } catch (error) {
         console.error(error);
