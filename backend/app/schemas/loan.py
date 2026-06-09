@@ -18,6 +18,7 @@ class LoanStatus(str, Enum):
 
 
 class LoanBase(BaseModel):
+    lender_id: int | None = None
     borrower_id: int
 
     amount: Decimal = Field(

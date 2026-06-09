@@ -10,6 +10,10 @@ from app.models.user import User
 from app.schemas.loan import LoanCreate, RepaymentCreate
 
 
+def is_admin(user: User) -> bool:
+    return user.role == "admin"
+
+
 def calculate_remaining_balance(
     db: Session,
     loan: Loan,
@@ -52,10 +56,28 @@ def create_loan(
     loan_data: LoanCreate,
     current_user: User,
 ) -> Loan:
-    if loan_data.borrower_id == current_user.id:
+    lender_id = current_user.id
+
+    if is_admin(current_user):
+        if loan_data.lender_id is not None:
+            lender_id = loan_data.lender_id
+
+    if loan_data.borrower_id == lender_id:
         raise HTTPException(
             status_code=400,
             detail="You cannot create a loan to yourself",
+        )
+
+    lender_result = db.execute(
+        select(User).where(User.id == lender_id)
+    )
+
+    lender = lender_result.scalar_one_or_none()
+
+    if lender is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Lender not found",
         )
 
     borrower_result = db.execute(
@@ -73,7 +95,7 @@ def create_loan(
         )
 
     loan = Loan(
-        lender_id=current_user.id,
+        lender_id=lender_id,
         borrower_id=loan_data.borrower_id,
         amount=loan_data.amount,
         currency=loan_data.currency,
@@ -96,14 +118,19 @@ def get_user_loans(
     db: Session,
     current_user: User,
 ):
-    result = db.execute(
-        select(Loan).where(
-            or_(
-                Loan.lender_id == current_user.id,
-                Loan.borrower_id == current_user.id,
-            )
+    if is_admin(current_user):
+        result = db.execute(
+            select(Loan).order_by(Loan.id.desc())
         )
-    )
+    else:
+        result = db.execute(
+            select(Loan).where(
+                or_(
+                    Loan.lender_id == current_user.id,
+                    Loan.borrower_id == current_user.id,
+                )
+            ).order_by(Loan.id.desc())
+        )
 
     loans = result.scalars().all()
 
@@ -136,6 +163,12 @@ def get_loan_by_id(
     if loan is None:
         return None
 
+    if is_admin(current_user):
+        return enrich_loan_with_balance(
+            db=db,
+            loan=loan,
+        )
+
     if (
         loan.lender_id != current_user.id
         and loan.borrower_id != current_user.id
@@ -165,7 +198,10 @@ def confirm_loan(
             detail="Loan not found",
         )
 
-    if loan.borrower_id != current_user.id:
+    if (
+        not is_admin(current_user)
+        and loan.borrower_id != current_user.id
+    ):
         raise HTTPException(
             status_code=403,
             detail="Only borrower can confirm this loan",
@@ -205,7 +241,10 @@ def reject_loan(
             detail="Loan not found",
         )
 
-    if loan.borrower_id != current_user.id:
+    if (
+        not is_admin(current_user)
+        and loan.borrower_id != current_user.id
+    ):
         raise HTTPException(
             status_code=403,
             detail="Only borrower can reject this loan",
@@ -247,20 +286,21 @@ def mark_loan_as_paid(
             detail="Loan not found",
         )
 
-    if (
-        loan.lender_id != current_user.id
-        and loan.borrower_id != current_user.id
-    ):
-        raise HTTPException(
-            status_code=404,
-            detail="Loan not found",
-        )
+    if not is_admin(current_user):
+        if (
+            loan.lender_id != current_user.id
+            and loan.borrower_id != current_user.id
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail="Loan not found",
+            )
 
-    if loan.lender_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Only lender can mark this loan as paid",
-        )
+        if loan.lender_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only lender can mark this loan as paid",
+            )
 
     if loan.status not in [
         LoanStatus.ACTIVE,
@@ -315,20 +355,21 @@ def create_repayment(
             detail="Loan not found",
         )
 
-    if (
-        loan.lender_id != current_user.id
-        and loan.borrower_id != current_user.id
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="Access denied",
-        )
+    if not is_admin(current_user):
+        if (
+            loan.lender_id != current_user.id
+            and loan.borrower_id != current_user.id
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied",
+            )
 
-    if loan.borrower_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Only borrower can repay this loan",
-        )
+        if loan.borrower_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only borrower can repay this loan",
+            )
 
     if loan.status not in [
         LoanStatus.ACTIVE,
