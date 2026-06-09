@@ -12,7 +12,9 @@ import LoansPage from "./pages/LoansPage";
 
 import CreateLoanForm from "./components/CreateLoanForm";
 import LoadingScreen from "./components/LoadingScreen";
+import UserSummaryCard from "./components/UserSummaryCard";
 
+import { getUserSummary } from "./api/summary";
 import { getUsers } from "./api/users";
 
 import { useAuth } from "./hooks/useAuth";
@@ -25,6 +27,7 @@ function App() {
   const [appLoading, setAppLoading] = useState(true);
   const [globalError, setGlobalError] = useState("");
   const [users, setUsers] = useState([]);
+  const [summary, setSummary] = useState(null);
 
   const {
     user,
@@ -73,6 +76,18 @@ function App() {
     }
   }
 
+  async function loadSummary() {
+    try {
+      const userSummary = await getUserSummary();
+
+      setSummary(userSummary);
+    } catch (error) {
+      console.error(error);
+
+      setSummary(null);
+    }
+  }
+
   async function bootstrap() {
     try {
       setGlobalError("");
@@ -89,6 +104,7 @@ function App() {
 
       await loadLoans();
       await loadUsers(profile);
+      await loadSummary();
     } catch (error) {
       console.error(error);
 
@@ -98,10 +114,42 @@ function App() {
     }
   }
 
+  async function refreshApplicationData(profile) {
+    await loadLoans();
+    await loadUsers(profile);
+    await loadSummary();
+  }
+
+  async function handleCreate(loanData) {
+    await create(loanData);
+    await loadSummary();
+  }
+
+  async function handleConfirm(loanId) {
+    await confirm(loanId);
+    await loadSummary();
+  }
+
+  async function handleReject(loanId) {
+    await reject(loanId);
+    await loadSummary();
+  }
+
+  async function handleMarkPaid(loanId) {
+    await markPaid(loanId);
+    await loadSummary();
+  }
+
+  async function handleRepay(loanId, amount) {
+    await repay(loanId, amount);
+    await loadSummary();
+  }
+
   function handleLogout() {
     logout();
     clearLoans();
     setUsers([]);
+    setSummary(null);
   }
 
   useEffect(() => {
@@ -130,8 +178,7 @@ function App() {
         const profile = await login();
 
         if (profile) {
-          await loadLoans();
-          await loadUsers(profile);
+          await refreshApplicationData(profile);
         }
       } catch (error) {
         console.error(error);
@@ -168,11 +215,15 @@ function App() {
             path="/"
             element={
               <>
+                <UserSummaryCard
+                  summary={summary}
+                />
+
                 <CreateLoanForm
                   users={users}
                   currentUser={user}
                   isAdmin={isAdmin}
-                  onCreate={create}
+                  onCreate={handleCreate}
                 />
 
                 <LoansPage
@@ -180,10 +231,10 @@ function App() {
                   user={user}
                   isAdmin={isAdmin}
                   repayments={repayments}
-                  onConfirm={confirm}
-                  onReject={reject}
-                  onMarkPaid={markPaid}
-                  onRepay={repay}
+                  onConfirm={handleConfirm}
+                  onReject={handleReject}
+                  onMarkPaid={handleMarkPaid}
+                  onRepay={handleRepay}
                 />
               </>
             }

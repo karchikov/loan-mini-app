@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from pydantic import BaseModel
 
 
@@ -22,3 +24,10 @@ class UserRead(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+
+class UserSummaryResponse(BaseModel):
+    my_debts: Decimal
+    owed_to_me: Decimal
+    balance: Decimal
+    active_loans_count: int
