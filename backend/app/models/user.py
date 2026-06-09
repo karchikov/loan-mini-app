@@ -29,6 +29,13 @@ class User(Base):
         nullable=True,
     )
 
+    role: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="user",
+        server_default="user",
+    )
+
     loans_given = relationship(
         "Loan",
         foreign_keys="Loan.lender_id",
