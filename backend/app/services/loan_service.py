@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.loan import Loan, LoanStatus
 from app.models.repayment import Repayment
@@ -12,6 +12,13 @@ from app.schemas.loan import LoanCreate, RepaymentCreate
 
 def is_admin(user: User) -> bool:
     return user.role == "admin"
+
+
+def loan_with_users_query():
+    return select(Loan).options(
+        joinedload(Loan.lender),
+        joinedload(Loan.borrower),
+    )
 
 
 def calculate_remaining_balance(
@@ -108,6 +115,14 @@ def create_loan(
     db.commit()
     db.refresh(loan)
 
+    result = db.execute(
+        loan_with_users_query().where(
+            Loan.id == loan.id
+        )
+    )
+
+    loan = result.scalar_one()
+
     return enrich_loan_with_balance(
         db=db,
         loan=loan,
@@ -118,13 +133,15 @@ def get_user_loans(
     db: Session,
     current_user: User,
 ):
+    query = loan_with_users_query()
+
     if is_admin(current_user):
         result = db.execute(
-            select(Loan).order_by(Loan.id.desc())
+            query.order_by(Loan.id.desc())
         )
     else:
         result = db.execute(
-            select(Loan).where(
+            query.where(
                 or_(
                     Loan.lender_id == current_user.id,
                     Loan.borrower_id == current_user.id,
@@ -153,7 +170,7 @@ def get_loan_by_id(
     current_user: User,
 ):
     result = db.execute(
-        select(Loan).where(
+        loan_with_users_query().where(
             Loan.id == loan_id
         )
     )
@@ -218,9 +235,10 @@ def confirm_loan(
     db.commit()
     db.refresh(loan)
 
-    return enrich_loan_with_balance(
+    return get_loan_by_id(
         db=db,
-        loan=loan,
+        loan_id=loan.id,
+        current_user=current_user,
     )
 
 
@@ -261,9 +279,10 @@ def reject_loan(
     db.commit()
     db.refresh(loan)
 
-    return enrich_loan_with_balance(
+    return get_loan_by_id(
         db=db,
-        loan=loan,
+        loan_id=loan.id,
+        current_user=current_user,
     )
 
 
@@ -329,9 +348,10 @@ def mark_loan_as_paid(
     db.commit()
     db.refresh(loan)
 
-    return enrich_loan_with_balance(
+    return get_loan_by_id(
         db=db,
-        loan=loan,
+        loan_id=loan.id,
+        current_user=current_user,
     )
 
 
@@ -426,9 +446,10 @@ def create_repayment(
     db.commit()
     db.refresh(loan)
 
-    return enrich_loan_with_balance(
+    return get_loan_by_id(
         db=db,
-        loan=loan,
+        loan_id=loan.id,
+        current_user=current_user,
     )
 
 

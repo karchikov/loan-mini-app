@@ -3,6 +3,21 @@ import RepayForm from "./RepayForm";
 
 import { formatMoney } from "../utils/formatters";
 
+function formatUser(userData, fallbackId) {
+  if (!userData) {
+    return `User #${fallbackId}`;
+  }
+
+  const name = userData.first_name || `User #${fallbackId}`;
+  const username = userData.username;
+
+  if (username) {
+    return `${name} (@${username})`;
+  }
+
+  return name;
+}
+
 function LoanCard({
   loan,
   user,
@@ -15,6 +30,16 @@ function LoanCard({
 }) {
   const isBorrower = user.id === loan.borrower_id;
   const isLender = user.id === loan.lender_id;
+
+  const borrowerName = formatUser(
+    loan.borrower,
+    loan.borrower_id,
+  );
+
+  const lenderName = formatUser(
+    loan.lender,
+    loan.lender_id,
+  );
 
   const canConfirmOrReject =
     loan.status === "draft" &&
@@ -52,11 +77,11 @@ function LoanCard({
         </p>
 
         <p>
-          <strong>Borrower ID:</strong> {loan.borrower_id}
+          <strong>Borrower:</strong> {borrowerName}
         </p>
 
         <p>
-          <strong>Lender ID:</strong> {loan.lender_id}
+          <strong>Lender:</strong> {lenderName}
         </p>
 
         <p>

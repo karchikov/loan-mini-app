@@ -4,6 +4,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.user import UserShortResponse
+
 
 class LoanStatus(str, Enum):
     DRAFT = "draft"
@@ -58,6 +60,9 @@ class LoanResponse(BaseModel):
 
     lender_id: int
     borrower_id: int
+
+    lender: UserShortResponse
+    borrower: UserShortResponse
 
     amount: Decimal
     currency: str
