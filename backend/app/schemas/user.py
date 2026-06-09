@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -31,3 +32,12 @@ class UserSummaryResponse(BaseModel):
     owed_to_me: Decimal
     balance: Decimal
     active_loans_count: int
+
+
+class UserHistoryItemResponse(BaseModel):
+    id: str
+    type: str
+    title: str
+    description: str
+    amount: Decimal | None = None
+    created_at: datetime

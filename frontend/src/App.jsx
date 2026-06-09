@@ -12,9 +12,13 @@ import LoansPage from "./pages/LoansPage";
 
 import CreateLoanForm from "./components/CreateLoanForm";
 import LoadingScreen from "./components/LoadingScreen";
+import UserHistoryCard from "./components/UserHistoryCard";
 import UserSummaryCard from "./components/UserSummaryCard";
 
-import { getUserSummary } from "./api/summary";
+import {
+  getUserHistory,
+  getUserSummary,
+} from "./api/summary";
 import { getUsers } from "./api/users";
 
 import { useAuth } from "./hooks/useAuth";
@@ -28,6 +32,7 @@ function App() {
   const [globalError, setGlobalError] = useState("");
   const [users, setUsers] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [history, setHistory] = useState(null);
 
   const {
     user,
@@ -88,6 +93,18 @@ function App() {
     }
   }
 
+  async function loadHistory() {
+    try {
+      const userHistory = await getUserHistory();
+
+      setHistory(userHistory);
+    } catch (error) {
+      console.error(error);
+
+      setHistory(null);
+    }
+  }
+
   async function bootstrap() {
     try {
       setGlobalError("");
@@ -105,6 +122,7 @@ function App() {
       await loadLoans();
       await loadUsers(profile);
       await loadSummary();
+      await loadHistory();
     } catch (error) {
       console.error(error);
 
@@ -118,31 +136,37 @@ function App() {
     await loadLoans();
     await loadUsers(profile);
     await loadSummary();
+    await loadHistory();
   }
 
   async function handleCreate(loanData) {
     await create(loanData);
     await loadSummary();
+    await loadHistory();
   }
 
   async function handleConfirm(loanId) {
     await confirm(loanId);
     await loadSummary();
+    await loadHistory();
   }
 
   async function handleReject(loanId) {
     await reject(loanId);
     await loadSummary();
+    await loadHistory();
   }
 
   async function handleMarkPaid(loanId) {
     await markPaid(loanId);
     await loadSummary();
+    await loadHistory();
   }
 
   async function handleRepay(loanId, amount) {
     await repay(loanId, amount);
     await loadSummary();
+    await loadHistory();
   }
 
   function handleLogout() {
@@ -150,6 +174,7 @@ function App() {
     clearLoans();
     setUsers([]);
     setSummary(null);
+    setHistory(null);
   }
 
   useEffect(() => {
@@ -217,6 +242,10 @@ function App() {
               <>
                 <UserSummaryCard
                   summary={summary}
+                />
+
+                <UserHistoryCard
+                  history={history}
                 />
 
                 <CreateLoanForm
