@@ -45,11 +45,27 @@ function App() {
     clearLoans,
   } = useLoans();
 
-  async function loadUsers() {
+  const isAdmin = user?.role === "admin";
+
+  async function loadUsers(currentUser) {
+    if (!currentUser) {
+      setUsers([]);
+      return;
+    }
+
     try {
       const usersList = await getUsers();
 
-      setUsers(usersList);
+      if (currentUser.role === "admin") {
+        setUsers(usersList);
+        return;
+      }
+
+      setUsers(
+        usersList.filter(
+          (item) => item.id !== currentUser.id
+        )
+      );
     } catch (error) {
       console.error(error);
 
@@ -61,10 +77,18 @@ function App() {
     try {
       setGlobalError("");
 
-      await loadProfile();
-      await loadLoans();
+      const profile = await loadProfile();
 
-      loadUsers();
+      if (!profile) {
+        setGlobalError(
+          "Failed to load user profile"
+        );
+
+        return;
+      }
+
+      await loadLoans();
+      await loadUsers(profile);
     } catch (error) {
       console.error(error);
 
@@ -107,8 +131,7 @@ function App() {
 
         if (profile) {
           await loadLoans();
-
-          loadUsers();
+          await loadUsers(profile);
         }
       } catch (error) {
         console.error(error);
@@ -147,12 +170,15 @@ function App() {
               <>
                 <CreateLoanForm
                   users={users}
+                  currentUser={user}
+                  isAdmin={isAdmin}
                   onCreate={create}
                 />
 
                 <LoansPage
                   loans={loans}
                   user={user}
+                  isAdmin={isAdmin}
                   repayments={repayments}
                   onConfirm={confirm}
                   onReject={reject}

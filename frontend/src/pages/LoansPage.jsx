@@ -8,6 +8,7 @@ import LoanFilters from "../components/LoanFilters";
 function LoansPage({
   loans,
   user,
+  isAdmin,
   repayments,
   onConfirm,
   onReject,
@@ -36,7 +37,7 @@ function LoansPage({
       />
 
       <h2 className="page-title">
-        Loans
+        {isAdmin ? "All Loans" : "Loans"}
       </h2>
 
       {filteredLoans.length === 0 && (
@@ -51,6 +52,7 @@ function LoansPage({
           key={loan.id}
           loan={loan}
           user={user}
+          isAdmin={isAdmin}
           repayments={repayments[loan.id] || []}
           onConfirm={onConfirm}
           onReject={onReject}

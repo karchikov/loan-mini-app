@@ -6,6 +6,7 @@ import { formatMoney } from "../utils/formatters";
 function LoanCard({
   loan,
   user,
+  isAdmin,
   repayments,
   onConfirm,
   onReject,
@@ -14,6 +15,20 @@ function LoanCard({
 }) {
   const isBorrower = user.id === loan.borrower_id;
   const isLender = user.id === loan.lender_id;
+
+  const canConfirmOrReject =
+    loan.status === "draft" &&
+    (isAdmin || isBorrower);
+
+  const canRepay =
+    (loan.status === "active" ||
+      loan.status === "partially_paid") &&
+    (isAdmin || isBorrower);
+
+  const canMarkPaid =
+    (loan.status === "active" ||
+      loan.status === "partially_paid") &&
+    (isAdmin || isLender);
 
   return (
     <div className="card loan-card">
@@ -50,7 +65,7 @@ function LoanCard({
         </p>
       </div>
 
-      {loan.status === "draft" && isBorrower && (
+      {canConfirmOrReject && (
         <div className="actions sticky-actions">
           <button onClick={() => onConfirm(loan.id)}>
             Confirm
@@ -65,24 +80,20 @@ function LoanCard({
         </div>
       )}
 
-      {(loan.status === "active" ||
-        loan.status === "partially_paid") &&
-        isBorrower && (
-          <RepayForm
-            onRepay={(amount) => onRepay(loan.id, amount)}
-          />
-        )}
+      {canRepay && (
+        <RepayForm
+          onRepay={(amount) => onRepay(loan.id, amount)}
+        />
+      )}
 
-      {(loan.status === "active" ||
-        loan.status === "partially_paid") &&
-        isLender && (
-          <button
-            className="full-width sticky-actions"
-            onClick={() => onMarkPaid(loan.id)}
-          >
-            Mark Paid
-          </button>
-        )}
+      {canMarkPaid && (
+        <button
+          className="full-width sticky-actions"
+          onClick={() => onMarkPaid(loan.id)}
+        >
+          Mark Paid
+        </button>
+      )}
 
       <RepaymentHistory repayments={repayments} />
     </div>

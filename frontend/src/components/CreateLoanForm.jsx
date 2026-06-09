@@ -17,8 +17,11 @@ function formatUserName(user) {
 
 function CreateLoanForm({
   users,
+  currentUser,
+  isAdmin,
   onCreate,
 }) {
+  const [lenderId, setLenderId] = useState("");
   const [borrowerId, setBorrowerId] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -26,16 +29,48 @@ function CreateLoanForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const borrowerOptions = users.filter((user) => {
+    if (isAdmin && lenderId) {
+      return user.id !== Number(lenderId);
+    }
+
+    return user.id !== currentUser.id;
+  });
+
+  const lenderOptions = users.filter((user) => {
+    if (borrowerId) {
+      return user.id !== Number(borrowerId);
+    }
+
+    return true;
+  });
+
   async function handleSubmit(e) {
     e.preventDefault();
 
     setError("");
 
     const borrowerIdValue = Number(borrowerId);
+    const lenderIdValue = Number(lenderId);
     const amountValue = Number(amount);
+
+    if (isAdmin && (!lenderIdValue || lenderIdValue <= 0)) {
+      setError("Select lender");
+      return;
+    }
 
     if (!borrowerIdValue || borrowerIdValue <= 0) {
       setError("Select borrower");
+      return;
+    }
+
+    if (isAdmin && lenderIdValue === borrowerIdValue) {
+      setError("Lender and borrower must be different");
+      return;
+    }
+
+    if (!isAdmin && borrowerIdValue === currentUser.id) {
+      setError("You cannot create a loan to yourself");
       return;
     }
 
@@ -47,12 +82,19 @@ function CreateLoanForm({
     try {
       setLoading(true);
 
-      await onCreate({
+      const payload = {
         borrower_id: borrowerIdValue,
         amount: amountValue,
         description: description.trim() || null,
-      });
+      };
 
+      if (isAdmin) {
+        payload.lender_id = lenderIdValue;
+      }
+
+      await onCreate(payload);
+
+      setLenderId("");
       setBorrowerId("");
       setAmount("");
       setDescription("");
@@ -70,9 +112,32 @@ function CreateLoanForm({
 
   return (
     <div className="card create-loan-card">
-      <h2>Create Loan</h2>
+      <h2>
+        {isAdmin ? "Create Loan as Admin" : "Create Loan"}
+      </h2>
 
       <form onSubmit={handleSubmit}>
+        {isAdmin && (
+          <select
+            value={lenderId}
+            onChange={(e) => setLenderId(e.target.value)}
+            disabled={loading}
+          >
+            <option value="">
+              Select lender
+            </option>
+
+            {lenderOptions.map((user) => (
+              <option
+                key={user.id}
+                value={user.id}
+              >
+                {formatUserName(user)}
+              </option>
+            ))}
+          </select>
+        )}
+
         <select
           value={borrowerId}
           onChange={(e) => setBorrowerId(e.target.value)}
@@ -82,7 +147,7 @@ function CreateLoanForm({
             Select borrower
           </option>
 
-          {users.map((user) => (
+          {borrowerOptions.map((user) => (
             <option
               key={user.id}
               value={user.id}
