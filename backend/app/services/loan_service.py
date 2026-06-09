@@ -8,6 +8,13 @@ from app.models.loan import Loan, LoanStatus
 from app.models.repayment import Repayment
 from app.models.user import User
 from app.schemas.loan import LoanCreate, RepaymentCreate
+from app.services.telegram_notifications import (
+    notify_loan_confirmed,
+    notify_loan_created,
+    notify_loan_paid,
+    notify_loan_rejected,
+    notify_partial_payment,
+)
 
 
 def is_admin(user: User) -> bool:
@@ -123,10 +130,16 @@ def create_loan(
 
     loan = result.scalar_one()
 
-    return enrich_loan_with_balance(
+    loan = enrich_loan_with_balance(
         db=db,
         loan=loan,
     )
+
+    notify_loan_created(
+        loan=loan,
+    )
+
+    return loan
 
 
 def get_user_loans(
@@ -235,11 +248,17 @@ def confirm_loan(
     db.commit()
     db.refresh(loan)
 
-    return get_loan_by_id(
+    loan = get_loan_by_id(
         db=db,
         loan_id=loan.id,
         current_user=current_user,
     )
+
+    notify_loan_confirmed(
+        loan=loan,
+    )
+
+    return loan
 
 
 def reject_loan(
@@ -279,11 +298,17 @@ def reject_loan(
     db.commit()
     db.refresh(loan)
 
-    return get_loan_by_id(
+    loan = get_loan_by_id(
         db=db,
         loan_id=loan.id,
         current_user=current_user,
     )
+
+    notify_loan_rejected(
+        loan=loan,
+    )
+
+    return loan
 
 
 def mark_loan_as_paid(
@@ -348,11 +373,17 @@ def mark_loan_as_paid(
     db.commit()
     db.refresh(loan)
 
-    return get_loan_by_id(
+    loan = get_loan_by_id(
         db=db,
         loan_id=loan.id,
         current_user=current_user,
     )
+
+    notify_loan_paid(
+        loan=loan,
+    )
+
+    return loan
 
 
 def create_repayment(
@@ -446,11 +477,24 @@ def create_repayment(
     db.commit()
     db.refresh(loan)
 
-    return get_loan_by_id(
+    loan = get_loan_by_id(
         db=db,
         loan_id=loan.id,
         current_user=current_user,
     )
+
+    if new_remaining_balance == 0:
+        notify_loan_paid(
+            loan=loan,
+        )
+    else:
+        notify_partial_payment(
+            loan=loan,
+            payment_amount=repayment_data.amount,
+            remaining_balance=new_remaining_balance,
+        )
+
+    return loan
 
 
 def get_repayment_history(

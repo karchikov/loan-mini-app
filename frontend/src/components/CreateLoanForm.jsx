@@ -29,12 +29,12 @@ function CreateLoanForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const borrowerOptions = users.filter((user) => {
-    if (isAdmin && lenderId) {
-      return user.id !== Number(lenderId);
-    }
+  const selectedLenderId = lenderId
+    ? Number(lenderId)
+    : currentUser.id;
 
-    return user.id !== currentUser.id;
+  const borrowerOptions = users.filter((user) => {
+    return user.id !== selectedLenderId;
   });
 
   const lenderOptions = users.filter((user) => {
@@ -51,13 +51,8 @@ function CreateLoanForm({
     setError("");
 
     const borrowerIdValue = Number(borrowerId);
-    const lenderIdValue = Number(lenderId);
+    const lenderIdValue = lenderId ? Number(lenderId) : null;
     const amountValue = Number(amount);
-
-    if (isAdmin && (!lenderIdValue || lenderIdValue <= 0)) {
-      setError("Select lender");
-      return;
-    }
 
     if (!borrowerIdValue || borrowerIdValue <= 0) {
       setError("Select borrower");
@@ -88,7 +83,7 @@ function CreateLoanForm({
         description: description.trim() || null,
       };
 
-      if (isAdmin) {
+      if (isAdmin && lenderIdValue) {
         payload.lender_id = lenderIdValue;
       }
 
@@ -124,7 +119,7 @@ function CreateLoanForm({
             disabled={loading}
           >
             <option value="">
-              Select lender
+              Я сам / текущий админ
             </option>
 
             {lenderOptions.map((user) => (
