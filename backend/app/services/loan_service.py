@@ -469,10 +469,7 @@ def create_repayment(
         remaining_balance - repayment_data.amount
     )
 
-    if new_remaining_balance == 0:
-        loan.status = LoanStatus.PAID
-    else:
-        loan.status = LoanStatus.PARTIALLY_PAID
+    loan.status = LoanStatus.PARTIALLY_PAID
 
     db.commit()
     db.refresh(loan)
@@ -483,16 +480,11 @@ def create_repayment(
         current_user=current_user,
     )
 
-    if new_remaining_balance == 0:
-        notify_loan_paid(
-            loan=loan,
-        )
-    else:
-        notify_partial_payment(
-            loan=loan,
-            payment_amount=repayment_data.amount,
-            remaining_balance=new_remaining_balance,
-        )
+    notify_partial_payment(
+        loan=loan,
+        payment_amount=repayment_data.amount,
+        remaining_balance=new_remaining_balance,
+    )
 
     return loan
 
