@@ -107,22 +107,55 @@ function CreateLoanForm({
 
   return (
     <div className="card create-loan-card">
-      <h2>
-        {isAdmin ? "Создать займ от имени администратора" : "Создать займ"}
-      </h2>
+      <div className="form-header">
+        <h2>
+          {isAdmin ? "Создать займ" : "Создать займ"}
+        </h2>
+
+        <p>
+          Укажите заемщика, сумму и описание займа.
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit}>
         {isAdmin && (
+          <label className="form-field">
+            <span>Кредитор</span>
+
+            <select
+              value={lenderId}
+              onChange={(e) => setLenderId(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">
+                Я (текущий администратор)
+              </option>
+
+              {lenderOptions.map((user) => (
+                <option
+                  key={user.id}
+                  value={user.id}
+                >
+                  {formatUserName(user)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <label className="form-field">
+          <span>Заемщик</span>
+
           <select
-            value={lenderId}
-            onChange={(e) => setLenderId(e.target.value)}
+            value={borrowerId}
+            onChange={(e) => setBorrowerId(e.target.value)}
             disabled={loading}
           >
             <option value="">
-              Я сам / текущий администратор
+              Выберите заемщика
             </option>
 
-            {lenderOptions.map((user) => (
+            {borrowerOptions.map((user) => (
               <option
                 key={user.id}
                 value={user.id}
@@ -131,48 +164,37 @@ function CreateLoanForm({
               </option>
             ))}
           </select>
-        )}
+        </label>
 
-        <select
-          value={borrowerId}
-          onChange={(e) => setBorrowerId(e.target.value)}
-          disabled={loading}
-        >
-          <option value="">
-            Выберите заемщика
-          </option>
+        <label className="form-field">
+          <span>Сумма займа</span>
 
-          {borrowerOptions.map((user) => (
-            <option
-              key={user.id}
-              value={user.id}
-            >
-              {formatUserName(user)}
-            </option>
-          ))}
-        </select>
+          <input
+            type="number"
+            placeholder="Например: 5000"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={loading}
+          />
+        </label>
 
-        <input
-          type="number"
-          placeholder="Сумма займа"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          disabled={loading}
-        />
+        <label className="form-field">
+          <span>Описание</span>
 
-        <input
-          type="text"
-          placeholder="Описание"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          disabled={loading}
-        />
+          <input
+            type="text"
+            placeholder="Например: до пятницы"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            disabled={loading}
+          />
+        </label>
 
         {error && <p className="form-error">{error}</p>}
 
         <button
           type="submit"
-          className="full-width"
+          className="full-width create-loan-button"
           disabled={loading}
         >
           {loading ? "Создание..." : "Создать займ"}
