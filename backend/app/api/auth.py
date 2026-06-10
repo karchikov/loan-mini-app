@@ -70,6 +70,7 @@ def telegram_login(
         )
 
     telegram_id = telegram_user["id"]
+    start_param = telegram_user.get("start_param")
 
     result = db.execute(
         select(User).where(User.telegram_id == telegram_id)
@@ -84,6 +85,19 @@ def telegram_login(
             first_name=telegram_user.get("first_name", "Telegram"),
             last_name=telegram_user.get("last_name"),
         )
+
+        if start_param:
+            inviter_result = db.execute(
+                select(User).where(User.invite_code == start_param)
+            )
+
+            inviter = inviter_result.scalar_one_or_none()
+
+            if (
+                inviter is not None
+                and inviter.telegram_id != telegram_id
+            ):
+                user.invited_by_user_id = inviter.id
 
         db.add(user)
 

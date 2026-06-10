@@ -1,16 +1,20 @@
+import secrets
 from decimal import Decimal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_user, require_admin
+from app.config import settings
 from app.database import get_db
 from app.models.loan import Loan, LoanStatus
 from app.models.repayment import Repayment
 from app.models.user import User
 from app.schemas.user import (
     UserHistoryItemResponse,
+    UserInviteResponse,
     UserRead,
     UserSummaryResponse,
 )
@@ -22,6 +26,60 @@ ACTIVE_LOAN_STATUSES = [
     LoanStatus.ACTIVE,
     LoanStatus.PARTIALLY_PAID,
 ]
+
+
+def generate_invite_code() -> str:
+    return secrets.token_urlsafe(16)
+
+
+def build_invite_link(invite_code: str) -> str:
+    bot_username = settings.TELEGRAM_BOT_USERNAME
+
+    if not bot_username:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Telegram bot username is not configured",
+        )
+
+    normalized_bot_username = bot_username.lstrip("@")
+    encoded_invite_code = quote(invite_code, safe="")
+
+    if settings.TELEGRAM_MINI_APP_SHORT_NAME:
+        mini_app_name = settings.TELEGRAM_MINI_APP_SHORT_NAME.strip("/")
+
+        return (
+            f"https://t.me/{normalized_bot_username}/{mini_app_name}"
+            f"?startapp={encoded_invite_code}"
+        )
+
+    return (
+        f"https://t.me/{normalized_bot_username}"
+        f"?startapp={encoded_invite_code}"
+    )
+
+
+def ensure_invite_code(
+    db: Session,
+    user: User,
+) -> str:
+    if user.invite_code:
+        return user.invite_code
+
+    while True:
+        invite_code = generate_invite_code()
+
+        result = db.execute(
+            select(User).where(User.invite_code == invite_code)
+        )
+
+        existing_user = result.scalar_one_or_none()
+
+        if existing_user is None:
+            user.invite_code = invite_code
+            db.commit()
+            db.refresh(user)
+
+            return invite_code
 
 
 def calculate_sum(
@@ -63,6 +121,25 @@ def get_me(
     current_user: User = Depends(get_current_user),
 ):
     return current_user
+
+
+@router.get(
+    "/users/me/invite",
+    response_model=UserInviteResponse,
+)
+def get_my_invite(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invite_code = ensure_invite_code(
+        db=db,
+        user=current_user,
+    )
+
+    return UserInviteResponse(
+        invite_code=invite_code,
+        invite_link=build_invite_link(invite_code),
+    )
 
 
 @router.get("/users/me/summary", response_model=UserSummaryResponse)

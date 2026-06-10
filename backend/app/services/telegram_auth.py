@@ -52,4 +52,9 @@ def validate_telegram_init_data(init_data: str) -> dict:
 
     user_data = json.loads(parsed_data["user"])
 
+    start_param = parsed_data.get("start_param")
+
+    if start_param:
+        user_data["start_param"] = start_param
+
     return user_data

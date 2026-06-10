@@ -34,6 +34,11 @@ class UserSummaryResponse(BaseModel):
     active_loans_count: int
 
 
+class UserInviteResponse(BaseModel):
+    invite_code: str
+    invite_link: str
+
+
 class UserHistoryItemResponse(BaseModel):
     id: str
     type: str

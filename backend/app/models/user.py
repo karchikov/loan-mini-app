@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, String
+from sqlalchemy import BigInteger, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -34,6 +34,30 @@ class User(Base):
         nullable=False,
         default="user",
         server_default="user",
+    )
+
+    invite_code: Mapped[str | None] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
+
+    invited_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    invited_by_user = relationship(
+        "User",
+        remote_side="User.id",
+        back_populates="invited_users",
+    )
+
+    invited_users = relationship(
+        "User",
+        back_populates="invited_by_user",
     )
 
     loans_given = relationship(
