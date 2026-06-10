@@ -3,12 +3,20 @@ import RepayForm from "./RepayForm";
 
 import { formatMoney } from "../utils/formatters";
 
+const LOAN_STATUS_LABELS = {
+  draft: "Ожидает подтверждения",
+  active: "Активен",
+  partially_paid: "Частично погашен",
+  paid: "Погашен",
+  rejected: "Отклонен",
+};
+
 function formatUser(userData, fallbackId) {
   if (!userData) {
-    return `User #${fallbackId}`;
+    return `Пользователь #${fallbackId}`;
   }
 
-  const name = userData.first_name || `User #${fallbackId}`;
+  const name = userData.first_name || `Пользователь #${fallbackId}`;
   const username = userData.username;
 
   if (username) {
@@ -55,13 +63,16 @@ function LoanCard({
       loan.status === "partially_paid") &&
     (isAdmin || isLender);
 
+  const statusLabel =
+    LOAN_STATUS_LABELS[loan.status] || loan.status;
+
   return (
     <div className="card loan-card">
       <div className="loan-header">
         <div>
-          <p className="loan-id">Loan #{loan.id}</p>
+          <p className="loan-id">Займ №{loan.id}</p>
           <p className={`loan-status ${loan.status}`}>
-            {loan.status}
+            {statusLabel}
           </p>
         </div>
 
@@ -72,35 +83,35 @@ function LoanCard({
 
       <div className="loan-body">
         <p>
-          <strong>Remaining:</strong>{" "}
+          <strong>Остаток:</strong>{" "}
           {formatMoney(loan.remaining_balance)}
         </p>
 
         <p>
-          <strong>Borrower:</strong> {borrowerName}
+          <strong>Заемщик:</strong> {borrowerName}
         </p>
 
         <p>
-          <strong>Lender:</strong> {lenderName}
+          <strong>Кредитор:</strong> {lenderName}
         </p>
 
         <p>
-          <strong>Description:</strong>{" "}
-          {loan.description || "No description"}
+          <strong>Описание:</strong>{" "}
+          {loan.description || "Без описания"}
         </p>
       </div>
 
       {canConfirmOrReject && (
         <div className="actions sticky-actions">
           <button onClick={() => onConfirm(loan.id)}>
-            Confirm
+            Подтвердить
           </button>
 
           <button
             className="danger-button"
             onClick={() => onReject(loan.id)}
           >
-            Reject
+            Отклонить
           </button>
         </div>
       )}
@@ -116,7 +127,7 @@ function LoanCard({
           className="full-width sticky-actions"
           onClick={() => onMarkPaid(loan.id)}
         >
-          Mark Paid
+          Отметить как погашенный
         </button>
       )}
 

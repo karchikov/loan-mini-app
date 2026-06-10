@@ -10,7 +10,7 @@ function UserSummaryCard({
   return (
     <div className="card">
       <h2 className="page-title">
-        User Card
+        Карточка пользователя
       </h2>
 
       <p>

@@ -113,7 +113,7 @@ function App() {
 
       if (!profile) {
         setGlobalError(
-          "Failed to load user profile"
+          "Не удалось загрузить профиль пользователя"
         );
 
         return;
@@ -126,7 +126,7 @@ function App() {
     } catch (error) {
       console.error(error);
 
-      setGlobalError("Failed to load application data");
+      setGlobalError("Не удалось загрузить данные приложения");
     } finally {
       setAppLoading(false);
     }
@@ -194,7 +194,7 @@ function App() {
 
         if (!tg?.initData) {
           setGlobalError(
-            "Open this app from Telegram"
+            "Откройте приложение через Telegram"
           );
 
           return;
@@ -209,7 +209,7 @@ function App() {
         console.error(error);
 
         setGlobalError(
-          "Telegram login failed"
+          "Ошибка входа через Telegram"
         );
       } finally {
         setAppLoading(false);

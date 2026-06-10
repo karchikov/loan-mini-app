@@ -9,10 +9,10 @@ function formatUserName(user) {
   const fullName = nameParts.join(" ");
 
   if (user.username) {
-    return `${fullName || "User"} (@${user.username})`;
+    return `${fullName || "Пользователь"} (@${user.username})`;
   }
 
-  return fullName || `User #${user.id}`;
+  return fullName || `Пользователь #${user.id}`;
 }
 
 function CreateLoanForm({
@@ -55,22 +55,22 @@ function CreateLoanForm({
     const amountValue = Number(amount);
 
     if (!borrowerIdValue || borrowerIdValue <= 0) {
-      setError("Select borrower");
+      setError("Выберите заемщика");
       return;
     }
 
     if (isAdmin && lenderIdValue === borrowerIdValue) {
-      setError("Lender and borrower must be different");
+      setError("Кредитор и заемщик должны быть разными пользователями");
       return;
     }
 
     if (!isAdmin && borrowerIdValue === currentUser.id) {
-      setError("You cannot create a loan to yourself");
+      setError("Нельзя создать займ самому себе");
       return;
     }
 
     if (!amountValue || amountValue <= 0) {
-      setError("Amount must be greater than 0");
+      setError("Сумма должна быть больше 0");
       return;
     }
 
@@ -98,7 +98,7 @@ function CreateLoanForm({
 
       setError(
         err.response?.data?.detail ||
-          "Failed to create loan"
+          "Не удалось создать займ"
       );
     } finally {
       setLoading(false);
@@ -108,7 +108,7 @@ function CreateLoanForm({
   return (
     <div className="card create-loan-card">
       <h2>
-        {isAdmin ? "Create Loan as Admin" : "Create Loan"}
+        {isAdmin ? "Создать займ от имени администратора" : "Создать займ"}
       </h2>
 
       <form onSubmit={handleSubmit}>
@@ -119,7 +119,7 @@ function CreateLoanForm({
             disabled={loading}
           >
             <option value="">
-              Я сам / текущий админ
+              Я сам / текущий администратор
             </option>
 
             {lenderOptions.map((user) => (
@@ -139,7 +139,7 @@ function CreateLoanForm({
           disabled={loading}
         >
           <option value="">
-            Select borrower
+            Выберите заемщика
           </option>
 
           {borrowerOptions.map((user) => (
@@ -154,7 +154,7 @@ function CreateLoanForm({
 
         <input
           type="number"
-          placeholder="Amount"
+          placeholder="Сумма займа"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           disabled={loading}
@@ -162,7 +162,7 @@ function CreateLoanForm({
 
         <input
           type="text"
-          placeholder="Description"
+          placeholder="Описание"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           disabled={loading}
@@ -175,7 +175,7 @@ function CreateLoanForm({
           className="full-width"
           disabled={loading}
         >
-          {loading ? "Creating..." : "Create Loan"}
+          {loading ? "Создание..." : "Создать займ"}
         </button>
       </form>
     </div>

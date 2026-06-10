@@ -1,11 +1,11 @@
 function LoanFilters({ value, onChange }) {
   const filters = [
-    { value: "all", label: "All" },
-    { value: "draft", label: "Draft" },
-    { value: "active", label: "Active" },
-    { value: "partially_paid", label: "Partial" },
-    { value: "paid", label: "Paid" },
-    { value: "rejected", label: "Rejected" },
+    { value: "all", label: "Все" },
+    { value: "draft", label: "Ожидают" },
+    { value: "active", label: "Активные" },
+    { value: "partially_paid", label: "Частично погашены" },
+    { value: "paid", label: "Погашены" },
+    { value: "rejected", label: "Отклонены" },
   ];
 
   return (

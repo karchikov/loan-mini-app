@@ -10,7 +10,7 @@ function MainLayout({
       <div className="topbar">
         <div>
           <h1 className="app-title">
-            Loan Mini App
+            Займы
           </h1>
 
           {user && (
@@ -25,7 +25,7 @@ function MainLayout({
             className="logout-button"
             onClick={onLogout}
           >
-            Logout
+            Выйти
           </button>
         )}
       </div>
@@ -40,7 +40,7 @@ function MainLayout({
                 : "tab-button"
             }
           >
-            Loans
+            Займы
           </NavLink>
         </div>
       )}

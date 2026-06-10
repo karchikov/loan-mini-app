@@ -37,13 +37,13 @@ function LoansPage({
       />
 
       <h2 className="page-title">
-        {isAdmin ? "All Loans" : "Loans"}
+        {isAdmin ? "Все займы" : "Мои займы"}
       </h2>
 
       {filteredLoans.length === 0 && (
         <EmptyState
-          title="No loans found"
-          text="There are no loans for the selected filter."
+          title="Займы не найдены"
+          text="По выбранному фильтру займов пока нет."
         />
       )}
 

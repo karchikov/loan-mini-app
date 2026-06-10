@@ -11,7 +11,7 @@ function RepayForm({ onRepay }) {
     const value = Number(amount);
 
     if (!value || value <= 0) {
-      setError("Amount must be greater than 0");
+      setError("Сумма должна быть больше 0");
       return;
     }
 
@@ -26,7 +26,7 @@ function RepayForm({ onRepay }) {
 
       setError(
         err.response?.data?.detail ||
-          "Failed to create repayment"
+          "Не удалось создать погашение"
       );
     } finally {
       setLoading(false);
@@ -37,7 +37,7 @@ function RepayForm({ onRepay }) {
     <div className="repay-box">
       <input
         type="number"
-        placeholder="Repayment amount"
+        placeholder="Сумма погашения"
         value={amount}
         disabled={loading}
         onChange={(e) => setAmount(e.target.value)}
@@ -46,7 +46,7 @@ function RepayForm({ onRepay }) {
       {error && <p className="form-error">{error}</p>}
 
       <button onClick={handleSubmit} disabled={loading}>
-        {loading ? "Processing..." : "Repay"}
+        {loading ? "Обработка..." : "Погасить часть"}
       </button>
     </div>
   );

@@ -14,17 +14,17 @@ function HeaderStats({ loans }) {
   return (
     <div className="stats-grid">
       <div className="stat-card">
-        <span>Total</span>
+        <span>Всего</span>
         <strong>{total}</strong>
       </div>
 
       <div className="stat-card">
-        <span>Active</span>
+        <span>Активные</span>
         <strong>{active}</strong>
       </div>
 
       <div className="stat-card">
-        <span>Paid</span>
+        <span>Погашены</span>
         <strong>{paid}</strong>
       </div>
     </div>

@@ -2,7 +2,7 @@ function LoadingScreen() {
   return (
     <div className="loading-screen">
       <div className="loader" />
-      <p>Loading...</p>
+      <p>Загрузка...</p>
     </div>
   );
 }
