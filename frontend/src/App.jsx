@@ -12,6 +12,7 @@ import HistoryPage from "./pages/HistoryPage";
 import LoansPage from "./pages/LoansPage";
 
 import CreateLoanForm from "./components/CreateLoanForm";
+import InviteUserButton from "./components/InviteUserButton";
 import LoadingScreen from "./components/LoadingScreen";
 import UserSummaryCard from "./components/UserSummaryCard";
 
@@ -126,7 +127,9 @@ function App() {
     } catch (error) {
       console.error(error);
 
-      setGlobalError("Не удалось загрузить данные приложения");
+      setGlobalError(
+        "Не удалось загрузить данные приложения"
+      );
     } finally {
       setAppLoading(false);
     }
@@ -243,6 +246,8 @@ function App() {
                 <UserSummaryCard
                   summary={summary}
                 />
+
+                <InviteUserButton />
 
                 <CreateLoanForm
                   users={users}
