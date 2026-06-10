@@ -71,22 +71,25 @@ function LoanCard({
       <div className="loan-header">
         <div>
           <p className="loan-id">Займ №{loan.id}</p>
+
           <p className={`loan-status ${loan.status}`}>
             {statusLabel}
           </p>
         </div>
+      </div>
 
-        <div className="loan-amount">
-          {formatMoney(loan.amount)}
-        </div>
+      <div className="loan-main-amount">
+        {formatMoney(loan.amount)}
+      </div>
+
+      <div className="loan-balance-box">
+        <span>Остаток к погашению</span>
+        <strong>
+          {formatMoney(loan.remaining_balance)}
+        </strong>
       </div>
 
       <div className="loan-body">
-        <p>
-          <strong>Остаток:</strong>{" "}
-          {formatMoney(loan.remaining_balance)}
-        </p>
-
         <p>
           <strong>Заемщик:</strong> {borrowerName}
         </p>

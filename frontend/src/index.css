@@ -13,6 +13,8 @@
   --danger: #dc2626;
   --success: #16a34a;
   --warning: #f59e0b;
+  --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  --shadow-soft: 0 6px 18px rgba(15, 23, 42, 0.06);
 }
 
 body {
@@ -67,6 +69,9 @@ body {
 
 .loan-card {
   overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: var(--shadow-soft);
 }
 
 .loan-header {
@@ -83,36 +88,82 @@ body {
 }
 
 .loan-status {
-  margin: 6px 0 0;
-  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin: 8px 0 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  text-transform: none;
   font-size: 12px;
   font-weight: bold;
+  line-height: 1.2;
 }
 
 .loan-status.draft {
-  color: var(--warning);
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.28);
 }
 
 .loan-status.active {
-  color: #2563eb;
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(37, 99, 235, 0.24);
 }
 
 .loan-status.partially_paid {
-  color: #7c3aed;
+  color: #6d28d9;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(124, 58, 237, 0.24);
 }
 
 .loan-status.paid {
-  color: var(--success);
+  color: #15803d;
+  background: rgba(22, 163, 74, 0.12);
+  border: 1px solid rgba(22, 163, 74, 0.24);
 }
 
 .loan-status.rejected {
-  color: var(--danger);
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.24);
 }
 
 .loan-amount {
   font-size: 22px;
   font-weight: bold;
   white-space: nowrap;
+}
+
+.loan-main-amount {
+  margin-top: 18px;
+  font-size: 34px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.loan-balance-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(0, 136, 204, 0.07);
+  border: 1px solid rgba(0, 136, 204, 0.12);
+}
+
+.loan-balance-box span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.loan-balance-box strong {
+  display: block;
+  font-size: 20px;
+  color: var(--text);
 }
 
 .loan-body {
@@ -175,7 +226,8 @@ button:disabled {
   margin-top: 16px;
 }
 
-input {
+input,
+select {
   width: 100%;
   padding: 12px;
   border-radius: 12px;
@@ -350,7 +402,7 @@ input::placeholder {
     align-items: flex-start;
   }
 
-  .loan-amount {
-    font-size: 24px;
+  .loan-main-amount {
+    font-size: 32px;
   }
 }
