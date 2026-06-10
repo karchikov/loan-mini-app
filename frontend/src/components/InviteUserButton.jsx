@@ -6,6 +6,40 @@ function InviteUserButton() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  function openTelegramShare(inviteLink) {
+    const shareUrl = new URL("https://t.me/share/url");
+
+    shareUrl.searchParams.set(
+      "url",
+      inviteLink
+    );
+
+    shareUrl.searchParams.set(
+      "text",
+      "Присоединяйся ко мне в LoanMiniApp"
+    );
+
+    const tg = window.Telegram?.WebApp;
+
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(
+        shareUrl.toString()
+      );
+
+      return;
+    }
+
+    if (tg?.openLink) {
+      tg.openLink(
+        shareUrl.toString()
+      );
+
+      return;
+    }
+
+    window.location.href = shareUrl.toString();
+  }
+
   async function handleInvite() {
     try {
       setLoading(true);
@@ -13,21 +47,8 @@ function InviteUserButton() {
 
       const invite = await getMyInviteLink();
 
-      const shareUrl = new URL("https://t.me/share/url");
-
-      shareUrl.searchParams.set(
-        "url",
+      openTelegramShare(
         invite.invite_link
-      );
-
-      shareUrl.searchParams.set(
-        "text",
-        "Присоединяйся ко мне в LoanMiniApp"
-      );
-
-      window.open(
-        shareUrl.toString(),
-        "_blank"
       );
     } catch (currentError) {
       console.error(currentError);
