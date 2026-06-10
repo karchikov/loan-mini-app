@@ -10,7 +10,7 @@ function MainLayout({
       <div className="topbar">
         <div>
           <h1 className="app-title">
-            Займы
+            Учет займов
           </h1>
 
           {user && (
@@ -34,13 +34,36 @@ function MainLayout({
         <div className="tabs">
           <NavLink
             to="/"
+            end
             className={({ isActive }) =>
               isActive
                 ? "tab-button active"
                 : "tab-button"
             }
           >
-            Займы
+            Активные
+          </NavLink>
+
+          <NavLink
+            to="/paid"
+            className={({ isActive }) =>
+              isActive
+                ? "tab-button active"
+                : "tab-button"
+            }
+          >
+            Погашены
+          </NavLink>
+
+          <NavLink
+            to="/history"
+            className={({ isActive }) =>
+              isActive
+                ? "tab-button active"
+                : "tab-button"
+            }
+          >
+            История
           </NavLink>
         </div>
       )}

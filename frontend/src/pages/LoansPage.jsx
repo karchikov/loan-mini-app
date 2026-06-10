@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import EmptyState from "../components/EmptyState";
-import HeaderStats from "../components/HeaderStats";
 import LoanCard from "../components/LoanCard";
-import LoanFilters from "../components/LoanFilters";
 
 function LoansPage({
+  mode,
   loans,
   user,
   isAdmin,
@@ -15,35 +14,45 @@ function LoansPage({
   onMarkPaid,
   onRepay,
 }) {
-  const [filter, setFilter] = useState("all");
-
   const filteredLoans = useMemo(() => {
     const sorted = [...loans].sort((a, b) => b.id - a.id);
 
-    if (filter === "all") {
-      return sorted;
+    if (mode === "paid") {
+      return sorted.filter((loan) => loan.status === "paid");
     }
 
-    return sorted.filter((loan) => loan.status === filter);
-  }, [loans, filter]);
+    return sorted.filter((loan) => {
+      return (
+        loan.status === "draft" ||
+        loan.status === "active" ||
+        loan.status === "partially_paid"
+      );
+    });
+  }, [loans, mode]);
+
+  const title =
+    mode === "paid" ? "Погашенные займы" : "Активные займы";
+
+  const emptyTitle =
+    mode === "paid"
+      ? "Погашенных займов пока нет"
+      : "Активных займов пока нет";
+
+  const emptyText =
+    mode === "paid"
+      ? "Здесь будут отображаться полностью погашенные займы."
+      : "Здесь будут отображаться займы, которые ожидают подтверждения, активны или погашены частично.";
 
   return (
     <div>
-      <HeaderStats loans={loans} />
-
-      <LoanFilters
-        value={filter}
-        onChange={setFilter}
-      />
-
       <h2 className="page-title">
-        {isAdmin ? "Все займы" : "Мои займы"}
+        {isAdmin ? title : title}
       </h2>
 
       {filteredLoans.length === 0 && (
         <EmptyState
-          title="Займы не найдены"
-          text="По выбранному фильтру займов пока нет."
+          title={emptyTitle}
+          text={emptyText}
         />
       )}
 

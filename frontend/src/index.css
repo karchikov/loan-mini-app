@@ -51,6 +51,35 @@ body {
   font-size: 14px;
 }
 
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tab-button.active {
+  background: var(--primary);
+  color: var(--button-text);
+  border-color: var(--primary);
+}
+
 .page-title {
   margin: 18px 0 12px;
 }
@@ -359,10 +388,7 @@ input::placeholder {
 }
 
 .stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 14px;
+  display: none;
 }
 
 .stat-card {
@@ -384,11 +410,7 @@ input::placeholder {
 }
 
 .filters {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
+  display: none;
 }
 
 .filter-button {
@@ -421,6 +443,16 @@ input::placeholder {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  .tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tab-button {
+    min-height: 40px;
+    padding: 9px 8px;
+    font-size: 13px;
   }
 
   .actions {

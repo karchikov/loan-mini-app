@@ -8,11 +8,11 @@ import {
 
 import MainLayout from "./layouts/MainLayout";
 
+import HistoryPage from "./pages/HistoryPage";
 import LoansPage from "./pages/LoansPage";
 
 import CreateLoanForm from "./components/CreateLoanForm";
 import LoadingScreen from "./components/LoadingScreen";
-import UserHistoryCard from "./components/UserHistoryCard";
 import UserSummaryCard from "./components/UserSummaryCard";
 
 import {
@@ -244,10 +244,6 @@ function App() {
                   summary={summary}
                 />
 
-                <UserHistoryCard
-                  history={history}
-                />
-
                 <CreateLoanForm
                   users={users}
                   currentUser={user}
@@ -256,6 +252,7 @@ function App() {
                 />
 
                 <LoansPage
+                  mode="active"
                   loans={loans}
                   user={user}
                   isAdmin={isAdmin}
@@ -266,6 +263,30 @@ function App() {
                   onRepay={handleRepay}
                 />
               </>
+            }
+          />
+
+          <Route
+            path="/paid"
+            element={
+              <LoansPage
+                mode="paid"
+                loans={loans}
+                user={user}
+                isAdmin={isAdmin}
+                repayments={repayments}
+                onConfirm={handleConfirm}
+                onReject={handleReject}
+                onMarkPaid={handleMarkPaid}
+                onRepay={handleRepay}
+              />
+            }
+          />
+
+          <Route
+            path="/history"
+            element={
+              <HistoryPage history={history} />
             }
           />
 

@@ -109,7 +109,7 @@ function CreateLoanForm({
     <div className="card create-loan-card">
       <div className="form-header">
         <h2>
-          {isAdmin ? "Создать займ" : "Создать займ"}
+          Создать займ
         </h2>
 
         <p>
