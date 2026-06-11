@@ -20,7 +20,7 @@ import {
   getUserHistory,
   getUserSummary,
 } from "./api/summary";
-import { getUsers } from "./api/users";
+import { getAvailableLenders } from "./api/users";
 
 import { useAuth } from "./hooks/useAuth";
 import { useLoans } from "./hooks/useLoans";
@@ -31,7 +31,7 @@ import { initTelegram } from "./utils/telegram";
 function App() {
   const [appLoading, setAppLoading] = useState(true);
   const [globalError, setGlobalError] = useState("");
-  const [users, setUsers] = useState([]);
+  const [availableLenders, setAvailableLenders] = useState([]);
   const [summary, setSummary] = useState(null);
   const [history, setHistory] = useState(null);
 
@@ -56,29 +56,24 @@ function App() {
 
   const isAdmin = user?.role === "admin";
 
-  async function loadUsers(currentUser) {
-    if (!currentUser) {
-      setUsers([]);
+  async function loadAvailableLenders(profile) {
+    if (!profile) {
+      setAvailableLenders([]);
       return;
     }
 
     try {
-      const usersList = await getUsers();
+      const lendersList = await getAvailableLenders();
 
-      if (currentUser.role === "admin") {
-        setUsers(usersList);
-        return;
-      }
-
-      setUsers(
-        usersList.filter(
-          (item) => item.id !== currentUser.id
+      setAvailableLenders(
+        lendersList.filter(
+          (item) => item.id !== profile.id
         )
       );
     } catch (error) {
       console.error(error);
 
-      setUsers([]);
+      setAvailableLenders([]);
     }
   }
 
@@ -121,7 +116,7 @@ function App() {
       }
 
       await loadLoans();
-      await loadUsers(profile);
+      await loadAvailableLenders(profile);
       await loadSummary();
       await loadHistory();
     } catch (error) {
@@ -137,7 +132,7 @@ function App() {
 
   async function refreshApplicationData(profile) {
     await loadLoans();
-    await loadUsers(profile);
+    await loadAvailableLenders(profile);
     await loadSummary();
     await loadHistory();
   }
@@ -175,7 +170,7 @@ function App() {
   function handleLogout() {
     logout();
     clearLoans();
-    setUsers([]);
+    setAvailableLenders([]);
     setSummary(null);
     setHistory(null);
   }
@@ -250,9 +245,7 @@ function App() {
                 <InviteUserButton />
 
                 <CreateLoanForm
-                  users={users}
-                  currentUser={user}
-                  isAdmin={isAdmin}
+                  lenders={availableLenders}
                   onCreate={handleCreate}
                 />
 

@@ -8,6 +8,14 @@ export async function getUsers() {
   return response.data;
 }
 
+export async function getAvailableLenders() {
+  const response = await client.get(
+    "/users/me/available-lenders"
+  );
+
+  return response.data;
+}
+
 export async function getMyInviteLink() {
   const response = await client.get(
     "/users/me/invite"

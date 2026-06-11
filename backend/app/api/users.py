@@ -15,6 +15,7 @@ from app.models.user import User
 from app.schemas.user import (
     UserHistoryItemResponse,
     UserInviteResponse,
+    UserNetworkRead,
     UserRead,
     UserSummaryResponse,
 )
@@ -142,6 +143,38 @@ def get_my_invite(
     )
 
 
+@router.get(
+    "/users/me/available-lenders",
+    response_model=list[UserNetworkRead],
+)
+def get_available_lenders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    network_conditions = [
+        User.invited_by_user_id == current_user.id,
+    ]
+
+    if current_user.invited_by_user_id is not None:
+        network_conditions.append(
+            User.id == current_user.invited_by_user_id
+        )
+
+    result = db.execute(
+        select(User)
+        .where(
+            User.id != current_user.id,
+            or_(*network_conditions),
+        )
+        .order_by(
+            User.first_name.asc(),
+            User.id.asc(),
+        )
+    )
+
+    return result.scalars().all()
+
+
 @router.get("/users/me/summary", response_model=UserSummaryResponse)
 def get_my_summary(
     db: Session = Depends(get_db),
@@ -215,10 +248,10 @@ def get_my_history(
             UserHistoryItemResponse(
                 id=f"loan-{loan.id}-created",
                 type="loan_created",
-                title="Создан займ",
+                title="Создана заявка на займ",
                 description=(
-                    f"{borrower_name} получил займ "
-                    f"от {lender_name}"
+                    f"{borrower_name} запросил займ "
+                    f"у {lender_name}"
                 ),
                 amount=loan.amount,
                 created_at=loan.created_at,

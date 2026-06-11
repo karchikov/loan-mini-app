@@ -4,7 +4,7 @@ import RepayForm from "./RepayForm";
 import { formatMoney } from "../utils/formatters";
 
 const LOAN_STATUS_LABELS = {
-  draft: "Ожидает подтверждения",
+  draft: "Ожидает подтверждения кредитора",
   active: "Активен",
   partially_paid: "Частично погашен",
   paid: "Погашен",
@@ -51,7 +51,7 @@ function LoanCard({
 
   const canConfirmOrReject =
     loan.status === "draft" &&
-    (isAdmin || isBorrower);
+    (isAdmin || isLender);
 
   const canRepay =
     (loan.status === "active" ||

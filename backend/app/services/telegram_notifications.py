@@ -81,14 +81,27 @@ def send_telegram_message(
 def notify_loan_created(
     loan: Loan,
 ) -> None:
-    lender_name = get_user_name(loan.lender)
-
-    description = loan.description or "Без описания"
+    borrower_name = get_user_name(loan.borrower)
 
     text = (
-        f"{lender_name} создал для вас займ\n"
-        f"Сумма: {format_money(loan.amount)} ₽\n"
-        f"Описание: {description}"
+        f"Пользователь {borrower_name} запросил у вас займ "
+        f"на сумму {format_money(loan.amount)} ₽"
+    )
+
+    send_telegram_message(
+        telegram_id=loan.lender.telegram_id,
+        text=text,
+    )
+
+
+def notify_loan_confirmed(
+    loan: Loan,
+) -> None:
+    lender_name = get_user_name(loan.lender)
+
+    text = (
+        f"{lender_name} подтвердил заявку на займ #{loan.id}\n"
+        f"Сумма: {format_money(loan.amount)} ₽"
     )
 
     send_telegram_message(
@@ -97,31 +110,15 @@ def notify_loan_created(
     )
 
 
-def notify_loan_confirmed(
-    loan: Loan,
-) -> None:
-    borrower_name = get_user_name(loan.borrower)
-
-    text = (
-        f"{borrower_name} подтвердил займ #{loan.id}\n"
-        f"Сумма: {format_money(loan.amount)} ₽"
-    )
-
-    send_telegram_message(
-        telegram_id=loan.lender.telegram_id,
-        text=text,
-    )
-
-
 def notify_loan_rejected(
     loan: Loan,
 ) -> None:
-    borrower_name = get_user_name(loan.borrower)
+    lender_name = get_user_name(loan.lender)
 
-    text = f"{borrower_name} отклонил займ #{loan.id}"
+    text = f"{lender_name} отклонил заявку на займ #{loan.id}"
 
     send_telegram_message(
-        telegram_id=loan.lender.telegram_id,
+        telegram_id=loan.borrower.telegram_id,
         text=text,
     )
 

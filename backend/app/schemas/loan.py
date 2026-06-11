@@ -20,9 +20,6 @@ class LoanStatus(str, Enum):
 
 
 class LoanBase(BaseModel):
-    lender_id: int | None = None
-    borrower_id: int
-
     amount: Decimal = Field(
         gt=0,
         description="Loan amount must be greater than zero",
@@ -34,7 +31,12 @@ class LoanBase(BaseModel):
 
 
 class LoanCreate(LoanBase):
-    pass
+    model_config = ConfigDict(extra="forbid")
+
+    lender_id: int = Field(
+        gt=0,
+        description="Selected lender user id",
+    )
 
 
 class RepaymentCreate(BaseModel):

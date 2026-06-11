@@ -16,56 +16,30 @@ function formatUserName(user) {
 }
 
 function CreateLoanForm({
-  users,
-  currentUser,
-  isAdmin,
+  lenders = [],
   onCreate,
 }) {
   const [lenderId, setLenderId] = useState("");
-  const [borrowerId, setBorrowerId] = useState("");
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("RUB");
   const [description, setDescription] = useState("");
+  const [dueDate, setDueDate] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const selectedLenderId = lenderId
-    ? Number(lenderId)
-    : currentUser.id;
-
-  const borrowerOptions = users.filter((user) => {
-    return user.id !== selectedLenderId;
-  });
-
-  const lenderOptions = users.filter((user) => {
-    if (borrowerId) {
-      return user.id !== Number(borrowerId);
-    }
-
-    return true;
-  });
+  const hasAvailableLenders = lenders.length > 0;
 
   async function handleSubmit(e) {
     e.preventDefault();
 
     setError("");
 
-    const borrowerIdValue = Number(borrowerId);
-    const lenderIdValue = lenderId ? Number(lenderId) : null;
+    const lenderIdValue = Number(lenderId);
     const amountValue = Number(amount);
 
-    if (!borrowerIdValue || borrowerIdValue <= 0) {
-      setError("Выберите заемщика");
-      return;
-    }
-
-    if (isAdmin && lenderIdValue === borrowerIdValue) {
-      setError("Кредитор и заемщик должны быть разными пользователями");
-      return;
-    }
-
-    if (!isAdmin && borrowerIdValue === currentUser.id) {
-      setError("Нельзя создать займ самому себе");
+    if (!lenderIdValue || lenderIdValue <= 0) {
+      setError("Выберите кредитора");
       return;
     }
 
@@ -78,27 +52,26 @@ function CreateLoanForm({
       setLoading(true);
 
       const payload = {
-        borrower_id: borrowerIdValue,
+        lender_id: lenderIdValue,
         amount: amountValue,
+        currency,
         description: description.trim() || null,
+        due_date: dueDate ? `${dueDate}T00:00:00` : null,
       };
-
-      if (isAdmin && lenderIdValue) {
-        payload.lender_id = lenderIdValue;
-      }
 
       await onCreate(payload);
 
       setLenderId("");
-      setBorrowerId("");
       setAmount("");
+      setCurrency("RUB");
       setDescription("");
+      setDueDate("");
     } catch (err) {
       console.error(err);
 
       setError(
         err.response?.data?.detail ||
-          "Не удалось создать займ"
+          "Не удалось запросить займ"
       );
     } finally {
       setLoading(false);
@@ -109,53 +82,34 @@ function CreateLoanForm({
     <div className="card create-loan-card">
       <div className="form-header">
         <h2>
-          Создать займ
+          Запросить займ
         </h2>
 
         <p>
-          Укажите заемщика, сумму и описание займа.
+          Выберите кредитора из Telegram-сети, укажите сумму и описание заявки.
         </p>
       </div>
 
+      {!hasAvailableLenders && (
+        <p className="form-error">
+          Пока нет доступных кредиторов. Пригласите пользователя через Telegram.
+        </p>
+      )}
+
       <form onSubmit={handleSubmit}>
-        {isAdmin && (
-          <label className="form-field">
-            <span>Кредитор</span>
-
-            <select
-              value={lenderId}
-              onChange={(e) => setLenderId(e.target.value)}
-              disabled={loading}
-            >
-              <option value="">
-                Я (текущий администратор)
-              </option>
-
-              {lenderOptions.map((user) => (
-                <option
-                  key={user.id}
-                  value={user.id}
-                >
-                  {formatUserName(user)}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-
         <label className="form-field">
-          <span>Заемщик</span>
+          <span>Кредитор</span>
 
           <select
-            value={borrowerId}
-            onChange={(e) => setBorrowerId(e.target.value)}
-            disabled={loading}
+            value={lenderId}
+            onChange={(e) => setLenderId(e.target.value)}
+            disabled={loading || !hasAvailableLenders}
           >
             <option value="">
-              Выберите заемщика
+              Выберите кредитора
             </option>
 
-            {borrowerOptions.map((user) => (
+            {lenders.map((user) => (
               <option
                 key={user.id}
                 value={user.id}
@@ -174,7 +128,30 @@ function CreateLoanForm({
             placeholder="Например: 5000"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            disabled={loading}
+            disabled={loading || !hasAvailableLenders}
+          />
+        </label>
+
+        <label className="form-field">
+          <span>Валюта</span>
+
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            disabled={loading || !hasAvailableLenders}
+          >
+            <option value="RUB">RUB</option>
+          </select>
+        </label>
+
+        <label className="form-field">
+          <span>Срок возврата</span>
+
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            disabled={loading || !hasAvailableLenders}
           />
         </label>
 
@@ -186,7 +163,7 @@ function CreateLoanForm({
             placeholder="Например: до пятницы"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            disabled={loading}
+            disabled={loading || !hasAvailableLenders}
           />
         </label>
 
@@ -195,9 +172,9 @@ function CreateLoanForm({
         <button
           type="submit"
           className="full-width create-loan-button"
-          disabled={loading}
+          disabled={loading || !hasAvailableLenders}
         >
-          {loading ? "Создание..." : "Создать займ"}
+          {loading ? "Отправка..." : "Запросить займ"}
         </button>
       </form>
     </div>

@@ -21,6 +21,16 @@ def is_admin(user: User) -> bool:
     return user.role == "admin"
 
 
+def is_user_in_telegram_network(
+    current_user: User,
+    user: User,
+) -> bool:
+    return (
+        user.invited_by_user_id == current_user.id
+        or current_user.invited_by_user_id == user.id
+    )
+
+
 def loan_with_users_query():
     return select(Loan).options(
         joinedload(Loan.lender),
@@ -70,20 +80,14 @@ def create_loan(
     loan_data: LoanCreate,
     current_user: User,
 ) -> Loan:
-    lender_id = current_user.id
-
-    if is_admin(current_user):
-        if loan_data.lender_id is not None:
-            lender_id = loan_data.lender_id
-
-    if loan_data.borrower_id == lender_id:
+    if loan_data.lender_id == current_user.id:
         raise HTTPException(
             status_code=400,
-            detail="You cannot create a loan to yourself",
+            detail="You cannot create a loan request to yourself",
         )
 
     lender_result = db.execute(
-        select(User).where(User.id == lender_id)
+        select(User).where(User.id == loan_data.lender_id)
     )
 
     lender = lender_result.scalar_one_or_none()
@@ -94,23 +98,18 @@ def create_loan(
             detail="Lender not found",
         )
 
-    borrower_result = db.execute(
-        select(User).where(
-            User.id == loan_data.borrower_id
-        )
-    )
-
-    borrower = borrower_result.scalar_one_or_none()
-
-    if borrower is None:
+    if not is_user_in_telegram_network(
+        current_user=current_user,
+        user=lender,
+    ):
         raise HTTPException(
-            status_code=404,
-            detail="Borrower not found",
+            status_code=403,
+            detail="Lender is not in your Telegram network",
         )
 
     loan = Loan(
-        lender_id=lender_id,
-        borrower_id=loan_data.borrower_id,
+        lender_id=lender.id,
+        borrower_id=current_user.id,
         amount=loan_data.amount,
         currency=loan_data.currency,
         description=loan_data.description,
@@ -230,11 +229,11 @@ def confirm_loan(
 
     if (
         not is_admin(current_user)
-        and loan.borrower_id != current_user.id
+        and loan.lender_id != current_user.id
     ):
         raise HTTPException(
             status_code=403,
-            detail="Only borrower can confirm this loan",
+            detail="Only lender can confirm this loan",
         )
 
     if loan.status != LoanStatus.DRAFT:
@@ -280,11 +279,11 @@ def reject_loan(
 
     if (
         not is_admin(current_user)
-        and loan.borrower_id != current_user.id
+        and loan.lender_id != current_user.id
     ):
         raise HTTPException(
             status_code=403,
-            detail="Only borrower can reject this loan",
+            detail="Only lender can reject this loan",
         )
 
     if loan.status != LoanStatus.DRAFT:
