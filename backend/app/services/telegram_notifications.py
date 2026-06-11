@@ -65,17 +65,11 @@ def send_telegram_message(
         ) as response:
             response.read()
     except urllib.error.HTTPError:
-        logger.exception(
-            "Telegram notification failed with HTTP error",
-        )
+        logger.exception("Telegram notification failed with HTTP error")
     except urllib.error.URLError:
-        logger.exception(
-            "Telegram notification failed with URL error",
-        )
+        logger.exception("Telegram notification failed with URL error")
     except Exception:
-        logger.exception(
-            "Telegram notification failed with unexpected error",
-        )
+        logger.exception("Telegram notification failed with unexpected error")
 
 
 def notify_loan_created(
@@ -84,8 +78,10 @@ def notify_loan_created(
     borrower_name = get_user_name(loan.borrower)
 
     text = (
-        f"Пользователь {borrower_name} запросил у вас займ "
-        f"на сумму {format_money(loan.amount)} ₽"
+        f"Новый запрос займа #{loan.id}\n\n"
+        f"Заёмщик: {borrower_name}\n"
+        f"Сумма: {format_money(loan.amount)} {loan.currency}\n\n"
+        f"Откройте приложение, чтобы подтвердить или отклонить заявку."
     )
 
     send_telegram_message(
@@ -100,8 +96,9 @@ def notify_loan_confirmed(
     lender_name = get_user_name(loan.lender)
 
     text = (
-        f"{lender_name} подтвердил заявку на займ #{loan.id}\n"
-        f"Сумма: {format_money(loan.amount)} ₽"
+        f"Заявка на займ #{loan.id} подтверждена.\n\n"
+        f"Кредитор: {lender_name}\n"
+        f"Сумма: {format_money(loan.amount)} {loan.currency}"
     )
 
     send_telegram_message(
@@ -115,7 +112,10 @@ def notify_loan_rejected(
 ) -> None:
     lender_name = get_user_name(loan.lender)
 
-    text = f"{lender_name} отклонил заявку на займ #{loan.id}"
+    text = (
+        f"Заявка на займ #{loan.id} отклонена.\n\n"
+        f"Кредитор: {lender_name}"
+    )
 
     send_telegram_message(
         telegram_id=loan.borrower.telegram_id,
@@ -128,10 +128,13 @@ def notify_partial_payment(
     payment_amount: Decimal,
     remaining_balance: Decimal,
 ) -> None:
+    borrower_name = get_user_name(loan.borrower)
+
     text = (
-        f"Поступил платёж по займу #{loan.id}\n"
-        f"Сумма: {format_money(payment_amount)} ₽\n"
-        f"Остаток: {format_money(remaining_balance)} ₽"
+        f"Поступил частичный платёж по займу #{loan.id}\n\n"
+        f"Заёмщик: {borrower_name}\n"
+        f"Платёж: {format_money(payment_amount)} {loan.currency}\n"
+        f"Остаток: {format_money(remaining_balance)} {loan.currency}"
     )
 
     send_telegram_message(
@@ -139,23 +142,59 @@ def notify_partial_payment(
         text=text,
     )
 
-    send_telegram_message(
-        telegram_id=loan.borrower.telegram_id,
-        text=text,
+    if loan.borrower.telegram_id != loan.lender.telegram_id:
+        send_telegram_message(
+            telegram_id=loan.borrower.telegram_id,
+            text=text,
+        )
+
+
+def notify_final_repayment_submitted(
+    loan: Loan,
+    payment_amount: Decimal,
+) -> None:
+    borrower_name = get_user_name(loan.borrower)
+
+    lender_text = (
+        f"Заёмщик сообщил о полном погашении займа #{loan.id}\n\n"
+        f"Заёмщик: {borrower_name}\n"
+        f"Последний платёж: {format_money(payment_amount)} {loan.currency}\n\n"
+        f"Откройте приложение и подтвердите закрытие займа."
     )
+
+    borrower_text = (
+        f"Последний платёж по займу #{loan.id} отправлен.\n\n"
+        f"Платёж: {format_money(payment_amount)} {loan.currency}\n"
+        f"Займ ожидает подтверждения закрытия кредитором."
+    )
+
+    send_telegram_message(
+        telegram_id=loan.lender.telegram_id,
+        text=lender_text,
+    )
+
+    if loan.borrower.telegram_id != loan.lender.telegram_id:
+        send_telegram_message(
+            telegram_id=loan.borrower.telegram_id,
+            text=borrower_text,
+        )
 
 
 def notify_loan_paid(
     loan: Loan,
 ) -> None:
-    text = f"Займ #{loan.id} полностью погашен"
+    text = (
+        f"Займ #{loan.id} закрыт.\n\n"
+        f"Кредитор подтвердил полное погашение."
+    )
 
     send_telegram_message(
         telegram_id=loan.lender.telegram_id,
         text=text,
     )
 
-    send_telegram_message(
-        telegram_id=loan.borrower.telegram_id,
-        text=text,
-    )
+    if loan.borrower.telegram_id != loan.lender.telegram_id:
+        send_telegram_message(
+            telegram_id=loan.borrower.telegram_id,
+            text=text,
+        )

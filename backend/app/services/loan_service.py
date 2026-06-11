@@ -9,6 +9,7 @@ from app.models.repayment import Repayment
 from app.models.user import User
 from app.schemas.loan import LoanCreate, RepaymentCreate
 from app.services.telegram_notifications import (
+    notify_final_repayment_submitted,
     notify_loan_confirmed,
     notify_loan_created,
     notify_loan_paid,
@@ -490,11 +491,17 @@ def create_repayment(
         current_user=current_user,
     )
 
-    notify_partial_payment(
-        loan=loan,
-        payment_amount=repayment_data.amount,
-        remaining_balance=new_remaining_balance,
-    )
+    if new_remaining_balance <= 0:
+        notify_final_repayment_submitted(
+            loan=loan,
+            payment_amount=repayment_data.amount,
+        )
+    else:
+        notify_partial_payment(
+            loan=loan,
+            payment_amount=repayment_data.amount,
+            remaining_balance=new_remaining_balance,
+        )
 
     return loan
 

@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 REMINDER_BEFORE_7 = "before_7"
 REMINDER_BEFORE_3 = "before_3"
+REMINDER_BEFORE_1 = "before_1"
 REMINDER_DUE_TODAY = "due_today"
-REMINDER_OVERDUE_1 = "overdue_1"
-REMINDER_OVERDUE_WEEKLY = "overdue_weekly"
+REMINDER_OVERDUE_DAILY = "overdue_daily"
 
 
 def calculate_remaining_balance(
@@ -60,16 +60,14 @@ def get_reminder_type(
     if days_delta == 3:
         return REMINDER_BEFORE_3
 
+    if days_delta == 1:
+        return REMINDER_BEFORE_1
+
     if days_delta == 0:
         return REMINDER_DUE_TODAY
 
-    if days_delta == -1:
-        return REMINDER_OVERDUE_1
-
-    overdue_days = abs(days_delta)
-
-    if days_delta < 0 and overdue_days > 1 and overdue_days % 7 == 0:
-        return REMINDER_OVERDUE_WEEKLY
+    if days_delta < 0:
+        return REMINDER_OVERDUE_DAILY
 
     return None
 
@@ -108,7 +106,6 @@ def create_reminder_log(
 
 def build_reminder_text(
     loan: Loan,
-    reminder_type: str,
     remaining_balance: Decimal,
     today: date,
 ) -> str:
@@ -117,17 +114,19 @@ def build_reminder_text(
 
     if days_delta > 0:
         timing_text = f"До срока возврата осталось дней: {days_delta}"
+        title = "Напоминание о возврате займа"
     elif days_delta == 0:
         timing_text = "Сегодня срок возврата займа"
+        title = "Сегодня срок возврата займа"
     else:
         timing_text = f"Просрочка дней: {abs(days_delta)}"
+        title = "Просрочка по займу"
 
     return (
-        f"Напоминание по займу #{loan.id}\n"
+        f"{title} #{loan.id}\n\n"
         f"Сумма займа: {format_money(loan.amount)} {loan.currency}\n"
         f"Остаток долга: {format_money(remaining_balance)} {loan.currency}\n"
-        f"{timing_text}\n"
-        f"Тип напоминания: {reminder_type}"
+        f"{timing_text}"
     )
 
 
@@ -204,7 +203,6 @@ def process_loan_reminders(
 
         text = build_reminder_text(
             loan=loan,
-            reminder_type=reminder_type,
             remaining_balance=remaining_balance,
             today=today,
         )
