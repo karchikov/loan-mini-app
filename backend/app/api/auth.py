@@ -12,6 +12,33 @@ from app.services.telegram_auth import validate_telegram_init_data
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def apply_invite_if_needed(
+    db: Session,
+    user: User,
+    telegram_id: int,
+    start_param: str | None,
+) -> None:
+    if not start_param:
+        return
+
+    if user.invited_by_user_id is not None:
+        return
+
+    inviter_result = db.execute(
+        select(User).where(User.invite_code == start_param)
+    )
+
+    inviter = inviter_result.scalar_one_or_none()
+
+    if inviter is None:
+        return
+
+    if inviter.telegram_id == telegram_id:
+        return
+
+    user.invited_by_user_id = inviter.id
+
+
 @router.post("/dev-login", response_model=LoginResponse)
 def dev_login(
     telegram_id: int,
@@ -86,18 +113,12 @@ def telegram_login(
             last_name=telegram_user.get("last_name"),
         )
 
-        if start_param:
-            inviter_result = db.execute(
-                select(User).where(User.invite_code == start_param)
-            )
-
-            inviter = inviter_result.scalar_one_or_none()
-
-            if (
-                inviter is not None
-                and inviter.telegram_id != telegram_id
-            ):
-                user.invited_by_user_id = inviter.id
+        apply_invite_if_needed(
+            db=db,
+            user=user,
+            telegram_id=telegram_id,
+            start_param=start_param,
+        )
 
         db.add(user)
 
@@ -108,6 +129,13 @@ def telegram_login(
             user.first_name,
         )
         user.last_name = telegram_user.get("last_name")
+
+        apply_invite_if_needed(
+            db=db,
+            user=user,
+            telegram_id=telegram_id,
+            start_param=start_param,
+        )
 
     db.commit()
     db.refresh(user)
