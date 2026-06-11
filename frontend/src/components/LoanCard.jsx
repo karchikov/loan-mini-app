@@ -5,10 +5,14 @@ import { formatMoney } from "../utils/formatters";
 
 const LOAN_STATUS_LABELS = {
   draft: "Ожидает подтверждения кредитора",
+  waiting_confirmation: "Ожидает подтверждения погашения",
   active: "Активен",
   partially_paid: "Частично погашен",
   paid: "Погашен",
-  rejected: "Отклонен",
+  overdue: "Просрочен",
+  cancelled: "Отменён",
+  disputed: "Спорный",
+  rejected: "Отклонён",
 };
 
 function formatUser(userData, fallbackId) {
@@ -60,11 +64,17 @@ function LoanCard({
 
   const canMarkPaid =
     (loan.status === "active" ||
-      loan.status === "partially_paid") &&
+      loan.status === "partially_paid" ||
+      loan.status === "waiting_confirmation") &&
     (isAdmin || isLender);
 
   const statusLabel =
     LOAN_STATUS_LABELS[loan.status] || loan.status;
+
+  const markPaidButtonText =
+    loan.status === "waiting_confirmation"
+      ? "Подтвердить закрытие займа"
+      : "Отметить как погашенный";
 
   return (
     <div className="card loan-card">
@@ -91,7 +101,7 @@ function LoanCard({
 
       <div className="loan-body">
         <p>
-          <strong>Заемщик:</strong> {borrowerName}
+          <strong>Заёмщик:</strong> {borrowerName}
         </p>
 
         <p>
@@ -130,7 +140,7 @@ function LoanCard({
           className="full-width sticky-actions"
           onClick={() => onMarkPaid(loan.id)}
         >
-          Отметить как погашенный
+          {markPaidButtonText}
         </button>
       )}
 

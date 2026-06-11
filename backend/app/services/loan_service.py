@@ -348,6 +348,7 @@ def mark_loan_as_paid(
     if loan.status not in [
         LoanStatus.ACTIVE,
         LoanStatus.PARTIALLY_PAID,
+        LoanStatus.WAITING_CONFIRMATION,
     ]:
         raise HTTPException(
             status_code=400,
@@ -359,13 +360,20 @@ def mark_loan_as_paid(
         loan=loan,
     )
 
-    if remaining_balance > 0:
-        repayment = Repayment(
-            loan_id=loan.id,
-            amount=remaining_balance,
-        )
+    if loan.status == LoanStatus.WAITING_CONFIRMATION:
+        if remaining_balance > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Loan still has remaining balance",
+            )
+    else:
+        if remaining_balance > 0:
+            repayment = Repayment(
+                loan_id=loan.id,
+                amount=remaining_balance,
+            )
 
-        db.add(repayment)
+            db.add(repayment)
 
     loan.status = LoanStatus.PAID
 
@@ -468,7 +476,10 @@ def create_repayment(
         remaining_balance - repayment_data.amount
     )
 
-    loan.status = LoanStatus.PARTIALLY_PAID
+    if new_remaining_balance <= 0:
+        loan.status = LoanStatus.WAITING_CONFIRMATION
+    else:
+        loan.status = LoanStatus.PARTIALLY_PAID
 
     db.commit()
     db.refresh(loan)
