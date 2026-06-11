@@ -34,6 +34,7 @@ def get_user_name(user: User | None) -> str:
 def send_telegram_message(
     telegram_id: int | None,
     text: str,
+    reply_markup: dict[str, Any] | None = None,
 ) -> None:
     if telegram_id is None:
         return
@@ -46,6 +47,9 @@ def send_telegram_message(
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }
+
+    if reply_markup is not None:
+        payload["reply_markup"] = reply_markup
 
     data = json.dumps(payload).encode("utf-8")
 
@@ -72,6 +76,40 @@ def send_telegram_message(
         logger.exception("Telegram notification failed with unexpected error")
 
 
+def build_loan_request_keyboard(
+    loan_id: int,
+) -> dict[str, Any]:
+    return {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "Подтвердить",
+                    "callback_data": f"loan:confirm:{loan_id}",
+                },
+                {
+                    "text": "Отклонить",
+                    "callback_data": f"loan:reject:{loan_id}",
+                },
+            ],
+        ],
+    }
+
+
+def build_mark_paid_keyboard(
+    loan_id: int,
+) -> dict[str, Any]:
+    return {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "Подтвердить закрытие",
+                    "callback_data": f"loan:mark_paid:{loan_id}",
+                },
+            ],
+        ],
+    }
+
+
 def notify_loan_created(
     loan: Loan,
 ) -> None:
@@ -81,12 +119,15 @@ def notify_loan_created(
         f"Новый запрос займа #{loan.id}\n\n"
         f"Заёмщик: {borrower_name}\n"
         f"Сумма: {format_money(loan.amount)} {loan.currency}\n\n"
-        f"Откройте приложение, чтобы подтвердить или отклонить заявку."
+        f"Вы можете подтвердить или отклонить заявку прямо здесь."
     )
 
     send_telegram_message(
         telegram_id=loan.lender.telegram_id,
         text=text,
+        reply_markup=build_loan_request_keyboard(
+            loan_id=loan.id,
+        ),
     )
 
 
@@ -159,7 +200,7 @@ def notify_final_repayment_submitted(
         f"Заёмщик сообщил о полном погашении займа #{loan.id}\n\n"
         f"Заёмщик: {borrower_name}\n"
         f"Последний платёж: {format_money(payment_amount)} {loan.currency}\n\n"
-        f"Откройте приложение и подтвердите закрытие займа."
+        f"Подтвердите закрытие займа, если деньги получены."
     )
 
     borrower_text = (
@@ -171,6 +212,9 @@ def notify_final_repayment_submitted(
     send_telegram_message(
         telegram_id=loan.lender.telegram_id,
         text=lender_text,
+        reply_markup=build_mark_paid_keyboard(
+            loan_id=loan.id,
+        ),
     )
 
     if loan.borrower.telegram_id != loan.lender.telegram_id:

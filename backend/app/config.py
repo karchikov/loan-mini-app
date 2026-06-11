@@ -12,6 +12,8 @@ class Settings(BaseSettings):
 
     TELEGRAM_MINI_APP_SHORT_NAME: str | None = None
 
+    TELEGRAM_WEBHOOK_SECRET: str | None = None
+
     ALGORITHM: str = "HS256"
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080
