@@ -1,8 +1,0 @@
-Ваш Render backend URL:
-https://loan-mini-app-7qbm.onrender.com
-
-https://github.com/karchikov/loan-mini-app
-
-https://vercel.com/karchikov-7816s-projects
-
-https://console.neon.tech/app/projects/square-thunder-23140169?database=neondb&branchId=br-gentle-art-al0g5uma
