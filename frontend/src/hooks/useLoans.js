@@ -4,7 +4,6 @@ import { createLoan } from "../api/createLoan";
 
 import {
   confirmLoan,
-  getLoans,
   getRepayments,
   markLoanPaid,
   rejectLoan,
@@ -14,16 +13,6 @@ import {
 export function useLoans() {
   const [loans, setLoans] = useState([]);
   const [repayments, setRepayments] = useState({});
-
-  async function loadLoans() {
-    try {
-      const loanList = await getLoans();
-
-      setLoans(loanList);
-    } catch (error) {
-      console.error(error);
-    }
-  }
 
   async function loadRepayments(loanId, force = false) {
     if (!force && repayments[loanId]) {
@@ -42,28 +31,22 @@ export function useLoans() {
 
   async function create(data) {
     await createLoan(data);
-    await loadLoans();
   }
 
   async function confirm(id) {
     await confirmLoan(id);
-    await loadLoans();
   }
 
   async function reject(id) {
     await rejectLoan(id);
-    await loadLoans();
   }
 
   async function markPaid(id) {
     await markLoanPaid(id);
-    await loadLoans();
   }
 
   async function repay(id, amount) {
     await repayLoan(id, amount);
-    await loadLoans();
-    await loadRepayments(id, true);
   }
 
   function clearLoans() {
@@ -73,8 +56,8 @@ export function useLoans() {
 
   return {
     loans,
+    setLoans,
     repayments,
-    loadLoans,
     loadRepayments,
     create,
     confirm,

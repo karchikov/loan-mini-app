@@ -16,11 +16,7 @@ import InviteUserButton from "./components/InviteUserButton";
 import LoadingScreen from "./components/LoadingScreen";
 import UserSummaryCard from "./components/UserSummaryCard";
 
-import {
-  getUserHistory,
-  getUserSummary,
-} from "./api/summary";
-import { getAvailableLenders } from "./api/users";
+import { loadDashboard } from "./api/dashboard";
 
 import { useAuth } from "./hooks/useAuth";
 import { useLoans } from "./hooks/useLoans";
@@ -33,19 +29,19 @@ function App() {
   const [globalError, setGlobalError] = useState("");
   const [availableLenders, setAvailableLenders] = useState([]);
   const [summary, setSummary] = useState(null);
-  const [history, setHistory] = useState(null);
+  const [history, setHistory] = useState([]);
 
   const {
     user,
+    setUser,
     login,
     logout,
-    loadProfile,
   } = useAuth();
 
   const {
     loans,
+    setLoans,
     repayments,
-    loadLoans,
     loadRepayments,
     create,
     confirm,
@@ -57,119 +53,63 @@ function App() {
 
   const isAdmin = user?.role === "admin";
 
-  async function loadAvailableLenders(profile) {
-    if (!profile) {
+  function applyDashboardData(dashboard) {
+    const dashboardUser = dashboard.user || null;
+
+    setUser(dashboardUser);
+    setLoans(dashboard.loans || []);
+    setSummary(dashboard.summary || null);
+    setHistory(dashboard.history || []);
+
+    if (!dashboardUser) {
       setAvailableLenders([]);
       return;
     }
 
-    try {
-      const lendersList = await getAvailableLenders();
-
-      setAvailableLenders(
-        lendersList.filter(
-          (item) => item.id !== profile.id
-        )
-      );
-    } catch (error) {
-      console.error(error);
-      setAvailableLenders([]);
-    }
+    setAvailableLenders(
+      (dashboard.available_lenders || []).filter(
+        (item) => item.id !== dashboardUser.id
+      )
+    );
   }
 
-  async function loadSummary() {
-    try {
-      const userSummary = await getUserSummary();
+  async function reloadDashboard() {
+    const dashboard = await loadDashboard();
 
-      setSummary(userSummary);
-    } catch (error) {
-      console.error(error);
-      setSummary(null);
-    }
-  }
+    applyDashboardData(dashboard);
 
-  async function loadHistory() {
-    try {
-      const userHistory = await getUserHistory();
-
-      setHistory(userHistory);
-    } catch (error) {
-      console.error(error);
-      setHistory(null);
-    }
-  }
-
-  async function bootstrap() {
-    try {
-      setGlobalError("");
-
-      const profile = await loadProfile();
-
-      if (!profile) {
-        setGlobalError(
-          "Не удалось загрузить профиль пользователя"
-        );
-
-        return;
-      }
-
-      await Promise.all([
-        loadLoans(),
-        loadAvailableLenders(profile),
-        loadSummary(),
-        loadHistory(),
-      ]);
-    } catch (error) {
-      console.error(error);
-
-      setGlobalError(
-        "Не удалось загрузить данные приложения"
-      );
-    } finally {
-      setAppLoading(false);
-    }
-  }
-
-  async function refreshApplicationData(profile) {
-    await Promise.all([
-      loadLoans(),
-      loadAvailableLenders(profile),
-      loadSummary(),
-      loadHistory(),
-    ]);
-  }
-
-  async function refreshAfterLoanAction() {
-    await Promise.all([
-      loadLoans(),
-      loadSummary(),
-      loadHistory(),
-    ]);
+    return dashboard;
   }
 
   async function handleCreate(loanData) {
     await create(loanData);
-    await refreshAfterLoanAction();
+    await reloadDashboard();
   }
 
   async function handleConfirm(loanId) {
     await confirm(loanId);
-    await refreshAfterLoanAction();
+    await reloadDashboard();
   }
 
   async function handleReject(loanId) {
     await reject(loanId);
-    await refreshAfterLoanAction();
+    await reloadDashboard();
   }
 
   async function handleMarkPaid(loanId) {
     await markPaid(loanId);
-    await refreshAfterLoanAction();
+    await reloadDashboard();
   }
 
   async function handleRepay(loanId, amount) {
+    const shouldRefreshRepayments = Boolean(repayments[loanId]);
+
     await repay(loanId, amount);
-    await refreshAfterLoanAction();
+    await reloadDashboard();
+
+    if (shouldRefreshRepayments) {
+      await loadRepayments(loanId, true);
+    }
   }
 
   function handleLogout() {
@@ -177,37 +117,42 @@ function App() {
     clearLoans();
     setAvailableLenders([]);
     setSummary(null);
-    setHistory(null);
+    setHistory([]);
   }
 
   useEffect(() => {
     async function initialize() {
       try {
+        setGlobalError("");
+
         initTelegram();
 
         const token = authStore.getToken();
 
-        if (token) {
-          await bootstrap();
-          return;
+        if (!token) {
+          const tg =
+            window.Telegram?.WebApp;
+
+          if (!tg?.initData) {
+            setGlobalError(
+              "Откройте приложение через Telegram"
+            );
+
+            return;
+          }
+
+          const profile = await login();
+
+          if (!profile) {
+            setGlobalError(
+              "Не удалось войти через Telegram"
+            );
+
+            return;
+          }
         }
 
-        const tg =
-          window.Telegram?.WebApp;
-
-        if (!tg?.initData) {
-          setGlobalError(
-            "Откройте приложение через Telegram"
-          );
-
-          return;
-        }
-
-        const profile = await login();
-
-        if (profile) {
-          await refreshApplicationData(profile);
-        }
+        await reloadDashboard();
       } catch (error) {
         console.error(error);
 

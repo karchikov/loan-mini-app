@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
+from app.api.dashboard import router as dashboard_router
 from app.api.loans import router as loans_router
 from app.api.telegram import router as telegram_router
 from app.api.users import router as users_router
@@ -45,6 +46,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(loans_router)
+app.include_router(dashboard_router)
 app.include_router(telegram_router)
 
 
