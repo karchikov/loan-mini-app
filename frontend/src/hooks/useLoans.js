@@ -23,12 +23,21 @@ export function useLoans() {
 
       setLoans(loanList);
 
+      const repaymentResults = await Promise.all(
+        loanList.map(async (loan) => {
+          const history = await getRepayments(loan.id);
+
+          return {
+            loanId: loan.id,
+            history,
+          };
+        })
+      );
+
       const repaymentMap = {};
 
-      for (const loan of loanList) {
-        const history = await getRepayments(loan.id);
-
-        repaymentMap[loan.id] = history;
+      for (const item of repaymentResults) {
+        repaymentMap[item.loanId] = item.history;
       }
 
       setRepayments(
