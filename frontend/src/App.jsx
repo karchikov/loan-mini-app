@@ -46,6 +46,7 @@ function App() {
     loans,
     repayments,
     loadLoans,
+    loadRepayments,
     create,
     confirm,
     reject,
@@ -72,7 +73,6 @@ function App() {
       );
     } catch (error) {
       console.error(error);
-
       setAvailableLenders([]);
     }
   }
@@ -84,7 +84,6 @@ function App() {
       setSummary(userSummary);
     } catch (error) {
       console.error(error);
-
       setSummary(null);
     }
   }
@@ -96,7 +95,6 @@ function App() {
       setHistory(userHistory);
     } catch (error) {
       console.error(error);
-
       setHistory(null);
     }
   }
@@ -115,10 +113,12 @@ function App() {
         return;
       }
 
-      await loadLoans();
-      await loadAvailableLenders(profile);
-      await loadSummary();
-      await loadHistory();
+      await Promise.all([
+        loadLoans(),
+        loadAvailableLenders(profile),
+        loadSummary(),
+        loadHistory(),
+      ]);
     } catch (error) {
       console.error(error);
 
@@ -131,40 +131,45 @@ function App() {
   }
 
   async function refreshApplicationData(profile) {
-    await loadLoans();
-    await loadAvailableLenders(profile);
-    await loadSummary();
-    await loadHistory();
+    await Promise.all([
+      loadLoans(),
+      loadAvailableLenders(profile),
+      loadSummary(),
+      loadHistory(),
+    ]);
+  }
+
+  async function refreshAfterLoanAction() {
+    await Promise.all([
+      loadLoans(),
+      loadSummary(),
+      loadHistory(),
+    ]);
   }
 
   async function handleCreate(loanData) {
     await create(loanData);
-    await loadSummary();
-    await loadHistory();
+    await refreshAfterLoanAction();
   }
 
   async function handleConfirm(loanId) {
     await confirm(loanId);
-    await loadSummary();
-    await loadHistory();
+    await refreshAfterLoanAction();
   }
 
   async function handleReject(loanId) {
     await reject(loanId);
-    await loadSummary();
-    await loadHistory();
+    await refreshAfterLoanAction();
   }
 
   async function handleMarkPaid(loanId) {
     await markPaid(loanId);
-    await loadSummary();
-    await loadHistory();
+    await refreshAfterLoanAction();
   }
 
   async function handleRepay(loanId, amount) {
     await repay(loanId, amount);
-    await loadSummary();
-    await loadHistory();
+    await refreshAfterLoanAction();
   }
 
   function handleLogout() {
@@ -255,6 +260,7 @@ function App() {
                   user={user}
                   isAdmin={isAdmin}
                   repayments={repayments}
+                  onLoadRepayments={loadRepayments}
                   onConfirm={handleConfirm}
                   onReject={handleReject}
                   onMarkPaid={handleMarkPaid}
@@ -273,6 +279,7 @@ function App() {
                 user={user}
                 isAdmin={isAdmin}
                 repayments={repayments}
+                onLoadRepayments={loadRepayments}
                 onConfirm={handleConfirm}
                 onReject={handleReject}
                 onMarkPaid={handleMarkPaid}

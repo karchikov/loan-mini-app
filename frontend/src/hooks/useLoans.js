@@ -11,8 +11,6 @@ import {
   repayLoan,
 } from "../api/loans";
 
-import { loanStore } from "../store/loanStore";
-
 export function useLoans() {
   const [loans, setLoans] = useState([]);
   const [repayments, setRepayments] = useState({});
@@ -22,63 +20,50 @@ export function useLoans() {
       const loanList = await getLoans();
 
       setLoans(loanList);
-
-      const repaymentResults = await Promise.all(
-        loanList.map(async (loan) => {
-          const history = await getRepayments(loan.id);
-
-          return {
-            loanId: loan.id,
-            history,
-          };
-        })
-      );
-
-      const repaymentMap = {};
-
-      for (const item of repaymentResults) {
-        repaymentMap[item.loanId] = item.history;
-      }
-
-      setRepayments(
-        loanStore.normalizeRepayments(
-          loanList,
-          repaymentMap
-        )
-      );
     } catch (error) {
       console.error(error);
     }
   }
 
+  async function loadRepayments(loanId, force = false) {
+    if (!force && repayments[loanId]) {
+      return repayments[loanId];
+    }
+
+    const history = await getRepayments(loanId);
+
+    setRepayments((current) => ({
+      ...current,
+      [loanId]: history,
+    }));
+
+    return history;
+  }
+
   async function create(data) {
     await createLoan(data);
-
     await loadLoans();
   }
 
   async function confirm(id) {
     await confirmLoan(id);
-
     await loadLoans();
   }
 
   async function reject(id) {
     await rejectLoan(id);
-
     await loadLoans();
   }
 
   async function markPaid(id) {
     await markLoanPaid(id);
-
     await loadLoans();
   }
 
   async function repay(id, amount) {
     await repayLoan(id, amount);
-
     await loadLoans();
+    await loadRepayments(id, true);
   }
 
   function clearLoans() {
@@ -90,6 +75,7 @@ export function useLoans() {
     loans,
     repayments,
     loadLoans,
+    loadRepayments,
     create,
     confirm,
     reject,

@@ -9,6 +9,7 @@ function LoansPage({
   user,
   isAdmin,
   repayments,
+  onLoadRepayments,
   onConfirm,
   onReject,
   onMarkPaid,
@@ -25,7 +26,8 @@ function LoansPage({
       return (
         loan.status === "draft" ||
         loan.status === "active" ||
-        loan.status === "partially_paid"
+        loan.status === "partially_paid" ||
+        loan.status === "waiting_confirmation"
       );
     });
   }, [loans, mode]);
@@ -46,7 +48,7 @@ function LoansPage({
   return (
     <div>
       <h2 className="page-title">
-        {isAdmin ? title : title}
+        {title}
       </h2>
 
       {filteredLoans.length === 0 && (
@@ -62,7 +64,8 @@ function LoansPage({
           loan={loan}
           user={user}
           isAdmin={isAdmin}
-          repayments={repayments[loan.id] || []}
+          repayments={repayments[loan.id]}
+          onLoadRepayments={onLoadRepayments}
           onConfirm={onConfirm}
           onReject={onReject}
           onMarkPaid={onMarkPaid}

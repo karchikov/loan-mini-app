@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import RepaymentHistory from "./RepaymentHistory";
 import RepayForm from "./RepayForm";
 
@@ -35,11 +37,15 @@ function LoanCard({
   user,
   isAdmin,
   repayments,
+  onLoadRepayments,
   onConfirm,
   onReject,
   onMarkPaid,
   onRepay,
 }) {
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   const isBorrower = user.id === loan.borrower_id;
   const isLender = user.id === loan.lender_id;
 
@@ -75,6 +81,28 @@ function LoanCard({
     loan.status === "waiting_confirmation"
       ? "Подтвердить закрытие займа"
       : "Отметить как погашенный";
+
+  async function handleToggleHistory() {
+    const nextVisible = !historyVisible;
+
+    setHistoryVisible(nextVisible);
+
+    if (
+      nextVisible &&
+      !repayments &&
+      onLoadRepayments
+    ) {
+      try {
+        setHistoryLoading(true);
+
+        await onLoadRepayments(loan.id);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setHistoryLoading(false);
+      }
+    }
+  }
 
   return (
     <div className="card loan-card">
@@ -144,7 +172,22 @@ function LoanCard({
         </button>
       )}
 
-      <RepaymentHistory repayments={repayments} />
+      <button
+        className="full-width"
+        onClick={handleToggleHistory}
+      >
+        {historyVisible
+          ? "Скрыть историю погашений"
+          : "Показать историю погашений"}
+      </button>
+
+      {historyLoading && (
+        <p className="muted">Загружаем историю...</p>
+      )}
+
+      {historyVisible && !historyLoading && (
+        <RepaymentHistory repayments={repayments || []} />
+      )}
     </div>
   );
 }
