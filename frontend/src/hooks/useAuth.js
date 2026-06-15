@@ -1,9 +1,6 @@
 import { useState } from "react";
 
-import {
-  getMe,
-  telegramLogin,
-} from "../api/auth";
+import { telegramLogin } from "../api/auth";
 
 import { authStore } from "../store/authStore";
 
@@ -13,20 +10,6 @@ export function useAuth() {
 
   const [loading, setLoading] =
     useState(false);
-
-  async function loadProfile() {
-    try {
-      const profile = await getMe();
-
-      setUser(profile);
-
-      return profile;
-    } catch (error) {
-      console.error(error);
-
-      return null;
-    }
-  }
 
   async function login() {
     try {
@@ -50,7 +33,7 @@ export function useAuth() {
         data.access_token
       );
 
-      return await loadProfile();
+      return data;
     } catch (error) {
       console.error(error);
 
@@ -72,6 +55,5 @@ export function useAuth() {
     loading,
     login,
     logout,
-    loadProfile,
   };
 }
