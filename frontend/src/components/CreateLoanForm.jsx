@@ -1,5 +1,10 @@
 import { useState } from "react";
+
+import { getMyInviteLink } from "../api/users";
+import { runTelegramInviteFlow } from "../utils/telegramInvite";
 import InviteUserButton from "./InviteUserButton";
+
+const INVITE_NEW_LENDER_VALUE = "invite_new_lender";
 
 function formatUserName(user) {
   const nameParts = [
@@ -27,7 +32,9 @@ function CreateLoanForm({
   const [dueDate, setDueDate] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [error, setError] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
 
   const hasAvailableLenders = lenders.length > 0;
 
@@ -35,22 +42,63 @@ function CreateLoanForm({
     return lenders.find((user) => Number(user.id) === lenderIdValue);
   }
 
+  async function handleInviteNewLender() {
+    try {
+      setInviteLoading(true);
+      setError("");
+      setInfoMessage("");
+
+      await runTelegramInviteFlow(getMyInviteLink);
+
+      setInfoMessage(
+        "Приглашение отправлено. После входа пользователя обновите список кредиторов."
+      );
+    } catch (currentError) {
+      console.error(currentError);
+
+      setError(
+        "Не удалось создать ссылку приглашения"
+      );
+    } finally {
+      setInviteLoading(false);
+      setLenderId("");
+    }
+  }
+
+  function handleLenderChange(e) {
+    const nextValue = e.target.value;
+
+    if (nextValue === INVITE_NEW_LENDER_VALUE) {
+      handleInviteNewLender();
+      return;
+    }
+
+    setError("");
+    setInfoMessage("");
+    setLenderId(nextValue);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
 
     setError("");
+    setInfoMessage("");
 
     const lenderIdValue = Number(lenderId);
     const amountValue = Number(amount);
     const selectedLender = getSelectedLender(lenderIdValue);
 
     if (!selectedLender) {
-      setError("Выберите кредитора из списка доступных пользователей");
+      setError(
+        "Выберите кредитора из списка доступных пользователей"
+      );
       return;
     }
 
     if (!amountValue || amountValue <= 0) {
-      setError("Сумма должна быть больше 0");
+      setError(
+        "Сумма должна быть больше 0"
+      );
       return;
     }
 
@@ -120,8 +168,8 @@ function CreateLoanForm({
 
           <select
             value={lenderId}
-            onChange={(e) => setLenderId(e.target.value)}
-            disabled={loading || !hasAvailableLenders}
+            onChange={handleLenderChange}
+            disabled={loading || inviteLoading || !hasAvailableLenders}
           >
             <option value="">
               Выберите кредитора
@@ -135,6 +183,10 @@ function CreateLoanForm({
                 {formatUserName(user)}
               </option>
             ))}
+
+            <option value={INVITE_NEW_LENDER_VALUE}>
+              ➕ Пригласить нового кредитора
+            </option>
           </select>
         </label>
 
@@ -146,7 +198,7 @@ function CreateLoanForm({
             placeholder="Например: 5000"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            disabled={loading || !hasAvailableLenders}
+            disabled={loading || inviteLoading || !hasAvailableLenders}
           />
         </label>
 
@@ -156,7 +208,7 @@ function CreateLoanForm({
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            disabled={loading || !hasAvailableLenders}
+            disabled={loading || inviteLoading || !hasAvailableLenders}
           >
             <option value="RUB">RUB</option>
           </select>
@@ -169,7 +221,7 @@ function CreateLoanForm({
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            disabled={loading || !hasAvailableLenders}
+            disabled={loading || inviteLoading || !hasAvailableLenders}
           />
         </label>
 
@@ -181,16 +233,26 @@ function CreateLoanForm({
             placeholder="Например: до пятницы"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            disabled={loading || !hasAvailableLenders}
+            disabled={loading || inviteLoading || !hasAvailableLenders}
           />
         </label>
 
-        {error && <p className="form-error">{error}</p>}
+        {infoMessage && (
+          <p className="form-success">
+            {infoMessage}
+          </p>
+        )}
+
+        {error && (
+          <p className="form-error">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"
           className="full-width create-loan-button"
-          disabled={loading || !hasAvailableLenders}
+          disabled={loading || inviteLoading || !hasAvailableLenders}
         >
           {loading ? "Отправка..." : "Запросить займ"}
         </button>

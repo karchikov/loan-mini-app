@@ -1,55 +1,18 @@
 import { useState } from "react";
 
 import { getMyInviteLink } from "../api/users";
+import { runTelegramInviteFlow } from "../utils/telegramInvite";
 
 function InviteUserButton() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  function openTelegramShare(inviteLink) {
-    const shareUrl = new URL("https://t.me/share/url");
-
-    shareUrl.searchParams.set(
-      "url",
-      inviteLink
-    );
-
-    shareUrl.searchParams.set(
-      "text",
-      "Присоединяйся ко мне в LoanMiniApp"
-    );
-
-    const tg = window.Telegram?.WebApp;
-
-    if (tg?.openTelegramLink) {
-      tg.openTelegramLink(
-        shareUrl.toString()
-      );
-
-      return;
-    }
-
-    if (tg?.openLink) {
-      tg.openLink(
-        shareUrl.toString()
-      );
-
-      return;
-    }
-
-    window.location.href = shareUrl.toString();
-  }
 
   async function handleInvite() {
     try {
       setLoading(true);
       setError("");
 
-      const invite = await getMyInviteLink();
-
-      openTelegramShare(
-        invite.invite_link
-      );
+      await runTelegramInviteFlow(getMyInviteLink);
     } catch (currentError) {
       console.error(currentError);
 
