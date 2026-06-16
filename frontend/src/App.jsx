@@ -170,49 +170,6 @@ function App() {
     reloadDashboard,
   ]);
 
-  useEffect(() => {
-    if (!user) {
-      return undefined;
-    }
-
-    async function refreshOnReturn() {
-      if (document.visibilityState === "hidden") {
-        return;
-      }
-
-      try {
-        await reloadDashboard();
-      } catch (error) {
-        console.error(error);
-      }
-    }
-
-    window.addEventListener(
-      "focus",
-      refreshOnReturn
-    );
-
-    document.addEventListener(
-      "visibilitychange",
-      refreshOnReturn
-    );
-
-    return () => {
-      window.removeEventListener(
-        "focus",
-        refreshOnReturn
-      );
-
-      document.removeEventListener(
-        "visibilitychange",
-        refreshOnReturn
-      );
-    };
-  }, [
-    user,
-    reloadDashboard,
-  ]);
-
   if (appLoading) {
     return <LoadingScreen />;
   }
