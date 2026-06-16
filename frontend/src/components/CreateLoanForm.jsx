@@ -2,7 +2,6 @@ import { useState } from "react";
 
 import { getMyInviteLink } from "../api/users";
 import { runTelegramInviteFlow } from "../utils/telegramInvite";
-import InviteUserButton from "./InviteUserButton";
 
 function formatUserName(user) {
   const nameParts = [
@@ -151,12 +150,6 @@ function CreateLoanForm({
           <p>
             Пригласите человека в приложение. После входа он появится в этом списке, и вы сможете запросить у него займ.
           </p>
-
-          <div style={{ marginTop: "12px" }}>
-            <InviteUserButton
-              onInviteSent={onInviteSent}
-            />
-          </div>
         </div>
       )}
 
@@ -184,41 +177,39 @@ function CreateLoanForm({
           </select>
         </label>
 
-        {hasAvailableLenders && (
-          <div
+        <div
+          style={{
+            display: "block",
+            width: "100%",
+            marginTop: "12px",
+            marginBottom: "18px",
+          }}
+        >
+          <button
+            type="button"
+            onClick={handleInviteNewLender}
+            disabled={loading || inviteLoading}
             style={{
               display: "block",
               width: "100%",
-              marginTop: "12px",
-              marginBottom: "18px",
+              minHeight: "44px",
+              padding: "12px 14px",
+              border: "1px solid #229ed9",
+              borderRadius: "12px",
+              background: loading || inviteLoading ? "#9ccfeb" : "#229ed9",
+              color: "#ffffff",
+              fontSize: "15px",
+              fontWeight: "700",
+              lineHeight: "20px",
+              textAlign: "center",
+              cursor: loading || inviteLoading ? "not-allowed" : "pointer",
             }}
           >
-            <button
-              type="button"
-              onClick={handleInviteNewLender}
-              disabled={loading || inviteLoading}
-              style={{
-                display: "block",
-                width: "100%",
-                minHeight: "44px",
-                padding: "12px 14px",
-                border: "1px solid #229ed9",
-                borderRadius: "12px",
-                background: loading || inviteLoading ? "#9ccfeb" : "#229ed9",
-                color: "#ffffff",
-                fontSize: "15px",
-                fontWeight: "700",
-                lineHeight: "20px",
-                textAlign: "center",
-                cursor: loading || inviteLoading ? "not-allowed" : "pointer",
-              }}
-            >
-              {inviteLoading
-                ? "Создаём ссылку..."
-                : "+ Пригласить нового кредитора"}
-            </button>
-          </div>
-        )}
+            {inviteLoading
+              ? "Создаём ссылку..."
+              : "+ Пригласить нового кредитора"}
+          </button>
+        </div>
 
         <label className="form-field">
           <span>Сумма займа</span>
