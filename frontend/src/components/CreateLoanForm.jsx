@@ -187,7 +187,7 @@ function CreateLoanForm({
         {hasAvailableLenders && (
           <button
             type="button"
-            className="secondary-button full-width"
+            className="primary-button full-width"
             onClick={handleInviteNewLender}
             disabled={loading || inviteLoading}
           >
