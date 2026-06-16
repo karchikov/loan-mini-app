@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   Routes,
@@ -73,13 +73,13 @@ function App() {
     );
   }
 
-  async function reloadDashboard() {
+  const reloadDashboard = useCallback(async () => {
     const dashboard = await loadDashboard();
 
     applyDashboardData(dashboard);
 
     return dashboard;
-  }
+  }, []);
 
   async function handleCreate(loanData) {
     await create(loanData);
@@ -165,7 +165,53 @@ function App() {
     }
 
     initialize();
-  }, []);
+  }, [
+    login,
+    reloadDashboard,
+  ]);
+
+  useEffect(() => {
+    if (!user) {
+      return undefined;
+    }
+
+    async function refreshOnReturn() {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+
+      try {
+        await reloadDashboard();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    window.addEventListener(
+      "focus",
+      refreshOnReturn
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      refreshOnReturn
+    );
+
+    return () => {
+      window.removeEventListener(
+        "focus",
+        refreshOnReturn
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        refreshOnReturn
+      );
+    };
+  }, [
+    user,
+    reloadDashboard,
+  ]);
 
   if (appLoading) {
     return <LoadingScreen />;
@@ -192,11 +238,14 @@ function App() {
                   summary={summary}
                 />
 
-                <InviteUserButton />
+                <InviteUserButton
+                  onInviteSent={reloadDashboard}
+                />
 
                 <CreateLoanForm
                   lenders={availableLenders}
                   onCreate={handleCreate}
+                  onInviteSent={reloadDashboard}
                 />
 
                 <LoansPage

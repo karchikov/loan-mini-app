@@ -3,7 +3,9 @@ import { useState } from "react";
 import { getMyInviteLink } from "../api/users";
 import { runTelegramInviteFlow } from "../utils/telegramInvite";
 
-function InviteUserButton() {
+function InviteUserButton({
+  onInviteSent,
+}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -13,6 +15,10 @@ function InviteUserButton() {
       setError("");
 
       await runTelegramInviteFlow(getMyInviteLink);
+
+      if (onInviteSent) {
+        await onInviteSent();
+      }
     } catch (currentError) {
       console.error(currentError);
 

@@ -24,6 +24,7 @@ function formatUserName(user) {
 function CreateLoanForm({
   lenders = [],
   onCreate,
+  onInviteSent,
 }) {
   const [lenderId, setLenderId] = useState("");
   const [amount, setAmount] = useState("");
@@ -50,8 +51,12 @@ function CreateLoanForm({
 
       await runTelegramInviteFlow(getMyInviteLink);
 
+      if (onInviteSent) {
+        await onInviteSent();
+      }
+
       setInfoMessage(
-        "Приглашение отправлено. После входа пользователя обновите список кредиторов."
+        "Приглашение отправлено. После входа пользователя список кредиторов обновится автоматически при возврате в приложение."
       );
     } catch (currentError) {
       console.error(currentError);
@@ -157,7 +162,9 @@ function CreateLoanForm({
           </p>
 
           <div style={{ marginTop: "12px" }}>
-            <InviteUserButton />
+            <InviteUserButton
+              onInviteSent={onInviteSent}
+            />
           </div>
         </div>
       )}
