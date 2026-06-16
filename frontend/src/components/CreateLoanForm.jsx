@@ -1,4 +1,5 @@
 import { useState } from "react";
+import InviteUserButton from "./InviteUserButton";
 
 function formatUserName(user) {
   const nameParts = [
@@ -30,6 +31,10 @@ function CreateLoanForm({
 
   const hasAvailableLenders = lenders.length > 0;
 
+  function getSelectedLender(lenderIdValue) {
+    return lenders.find((user) => Number(user.id) === lenderIdValue);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -37,9 +42,10 @@ function CreateLoanForm({
 
     const lenderIdValue = Number(lenderId);
     const amountValue = Number(amount);
+    const selectedLender = getSelectedLender(lenderIdValue);
 
-    if (!lenderIdValue || lenderIdValue <= 0) {
-      setError("Выберите кредитора");
+    if (!selectedLender) {
+      setError("Выберите кредитора из списка доступных пользователей");
       return;
     }
 
@@ -99,22 +105,12 @@ function CreateLoanForm({
           </p>
 
           <p>
-            Чтобы запросить займ:
+            Пригласите человека в приложение. После входа он появится в этом списке, и вы сможете запросить у него займ.
           </p>
 
-          <ol style={{ marginTop: "8px", paddingLeft: "20px" }}>
-            <li>
-              Пригласите пользователя через Telegram.
-            </li>
-
-            <li>
-              Пользователь должен открыть приложение по вашей ссылке.
-            </li>
-
-            <li>
-              После этого он автоматически появится в вашем списке кредиторов.
-            </li>
-          </ol>
+          <div style={{ marginTop: "12px" }}>
+            <InviteUserButton />
+          </div>
         </div>
       )}
 
