@@ -154,6 +154,39 @@ function CreateLoanForm({
       )}
 
       <form onSubmit={handleSubmit}>
+        <div
+          style={{
+            display: "block",
+            width: "100%",
+            marginBottom: "18px",
+          }}
+        >
+          <button
+            type="button"
+            onClick={handleInviteNewLender}
+            disabled={loading || inviteLoading}
+            style={{
+              display: "block",
+              width: "100%",
+              minHeight: "46px",
+              padding: "12px 14px",
+              border: "1px solid #229ed9",
+              borderRadius: "12px",
+              background: loading || inviteLoading ? "#9ccfeb" : "#229ed9",
+              color: "#ffffff",
+              fontSize: "15px",
+              fontWeight: "700",
+              lineHeight: "20px",
+              textAlign: "center",
+              cursor: loading || inviteLoading ? "not-allowed" : "pointer",
+            }}
+          >
+            {inviteLoading
+              ? "Создаём ссылку..."
+              : "+ Пригласить нового кредитора"}
+          </button>
+        </div>
+
         <label className="form-field">
           <span>Кредитор</span>
 
@@ -176,40 +209,6 @@ function CreateLoanForm({
             ))}
           </select>
         </label>
-
-        <div
-          style={{
-            display: "block",
-            width: "100%",
-            marginTop: "12px",
-            marginBottom: "18px",
-          }}
-        >
-          <button
-            type="button"
-            onClick={handleInviteNewLender}
-            disabled={loading || inviteLoading}
-            style={{
-              display: "block",
-              width: "100%",
-              minHeight: "44px",
-              padding: "12px 14px",
-              border: "1px solid #229ed9",
-              borderRadius: "12px",
-              background: loading || inviteLoading ? "#9ccfeb" : "#229ed9",
-              color: "#ffffff",
-              fontSize: "15px",
-              fontWeight: "700",
-              lineHeight: "20px",
-              textAlign: "center",
-              cursor: loading || inviteLoading ? "not-allowed" : "pointer",
-            }}
-          >
-            {inviteLoading
-              ? "Создаём ссылку..."
-              : "+ Пригласить нового кредитора"}
-          </button>
-        </div>
 
         <label className="form-field">
           <span>Сумма займа</span>
