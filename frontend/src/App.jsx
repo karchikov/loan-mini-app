@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Routes,
@@ -73,13 +73,13 @@ function App() {
     );
   }
 
-  const reloadDashboard = useCallback(async () => {
+  async function reloadDashboard() {
     const dashboard = await loadDashboard();
 
     applyDashboardData(dashboard);
 
     return dashboard;
-  }, []);
+  }
 
   async function handleCreate(loanData) {
     await create(loanData);
@@ -152,7 +152,9 @@ function App() {
           }
         }
 
-        await reloadDashboard();
+        const dashboard = await loadDashboard();
+
+        applyDashboardData(dashboard);
       } catch (error) {
         console.error(error);
 
@@ -165,10 +167,7 @@ function App() {
     }
 
     initialize();
-  }, [
-    login,
-    reloadDashboard,
-  ]);
+  }, []);
 
   if (appLoading) {
     return <LoadingScreen />;
