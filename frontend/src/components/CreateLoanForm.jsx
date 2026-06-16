@@ -4,8 +4,6 @@ import { getMyInviteLink } from "../api/users";
 import { runTelegramInviteFlow } from "../utils/telegramInvite";
 import InviteUserButton from "./InviteUserButton";
 
-const INVITE_NEW_LENDER_VALUE = "invite_new_lender";
-
 function formatUserName(user) {
   const nameParts = [
     user.first_name,
@@ -71,16 +69,9 @@ function CreateLoanForm({
   }
 
   function handleLenderChange(e) {
-    const nextValue = e.target.value;
-
-    if (nextValue === INVITE_NEW_LENDER_VALUE) {
-      handleInviteNewLender();
-      return;
-    }
-
     setError("");
     setInfoMessage("");
-    setLenderId(nextValue);
+    setLenderId(e.target.value);
   }
 
   async function handleSubmit(e) {
@@ -190,12 +181,21 @@ function CreateLoanForm({
                 {formatUserName(user)}
               </option>
             ))}
-
-            <option value={INVITE_NEW_LENDER_VALUE}>
-              ➕ Пригласить нового кредитора
-            </option>
           </select>
         </label>
+
+        {hasAvailableLenders && (
+          <button
+            type="button"
+            className="secondary-button full-width"
+            onClick={handleInviteNewLender}
+            disabled={loading || inviteLoading}
+          >
+            {inviteLoading
+              ? "Создаём ссылку..."
+              : "+ Пригласить нового кредитора"}
+          </button>
+        )}
 
         <label className="form-field">
           <span>Сумма займа</span>
