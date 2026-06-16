@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import case, func, or_, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, load_only
 
 from app.api.deps import get_current_user
 from app.database import get_db
@@ -83,8 +83,26 @@ def get_dashboard_loans(
             repayment_totals.c.loan_id == Loan.id,
         )
         .options(
-            joinedload(Loan.lender),
-            joinedload(Loan.borrower),
+            load_only(
+                Loan.id,
+                Loan.lender_id,
+                Loan.borrower_id,
+                Loan.amount,
+                Loan.description,
+                Loan.status,
+                Loan.created_at,
+                Loan.updated_at,
+            ),
+            joinedload(Loan.lender).load_only(
+                User.id,
+                User.username,
+                User.first_name,
+            ),
+            joinedload(Loan.borrower).load_only(
+                User.id,
+                User.username,
+                User.first_name,
+            ),
         )
         .order_by(Loan.id.desc())
     )
@@ -194,6 +212,14 @@ def get_dashboard_available_lenders(
 
     result = db.execute(
         select(User)
+        .options(
+            load_only(
+                User.id,
+                User.username,
+                User.first_name,
+                User.last_name,
+            )
+        )
         .where(
             User.id != current_user.id,
             or_(*network_conditions),
