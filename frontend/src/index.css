@@ -225,14 +225,26 @@ body {
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 20;
-  max-height: 260px;
-  overflow-y: auto;
-  padding: 6px;
-  border-radius: 14px;
+  z-index: 30;
+  padding: 8px;
+  border-radius: 16px;
   border: 1px solid var(--border);
   background: var(--card);
   box-shadow: var(--shadow);
+}
+
+.custom-dropdown-search-box {
+  margin-bottom: 8px;
+}
+
+.custom-dropdown-search {
+  margin-bottom: 0;
+}
+
+.custom-dropdown-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .custom-dropdown-option {
@@ -258,9 +270,14 @@ body {
   color: var(--primary);
 }
 
+.custom-dropdown-option.invite-option.pinned {
+  background: rgba(0, 136, 204, 0.08);
+  border: 1px solid rgba(0, 136, 204, 0.16);
+}
+
 .custom-dropdown-divider {
   height: 1px;
-  margin: 6px 0;
+  margin: 8px 0;
   background: var(--border);
 }
 
@@ -339,12 +356,7 @@ body {
   border: 1px solid rgba(22, 163, 74, 0.24);
 }
 
-.loan-status.rejected {
-  color: #b91c1c;
-  background: rgba(220, 38, 38, 0.12);
-  border: 1px solid rgba(220, 38, 38, 0.24);
-}
-
+.loan-status.rejected,
 .loan-status.overdue {
   color: #b91c1c;
   background: rgba(220, 38, 38, 0.12);
@@ -608,6 +620,48 @@ input::placeholder {
   border-color: var(--primary);
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.modal-card h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.modal-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.modal-actions button {
+  flex: 1;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -646,7 +700,8 @@ input::placeholder {
     min-width: 0;
   }
 
-  .actions {
+  .actions,
+  .modal-actions {
     flex-direction: column;
   }
 
@@ -665,5 +720,13 @@ input::placeholder {
 
   .loan-main-amount {
     font-size: 32px;
+  }
+
+  .custom-dropdown-menu {
+    max-height: 360px;
+  }
+
+  .custom-dropdown-scroll {
+    max-height: 190px;
   }
 }

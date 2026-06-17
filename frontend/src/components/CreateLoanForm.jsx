@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getMyInviteLink } from "../api/users";
 import { runTelegramInviteFlow } from "../utils/telegramInvite";
@@ -18,6 +18,12 @@ function formatUserName(user) {
   return fullName || `Пользователь #${user.id}`;
 }
 
+function normalizeSearchValue(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
 function CreateLoanForm({
   lenders = [],
   onCreate,
@@ -32,6 +38,9 @@ function CreateLoanForm({
   const [dueDate, setDueDate] = useState("");
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [lenderSearch, setLenderSearch] = useState("");
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [error, setError] = useState("");
@@ -46,6 +55,27 @@ function CreateLoanForm({
   const selectedLenderText = selectedLender
     ? formatUserName(selectedLender)
     : "Выберите кредитора";
+
+  const filteredLenders = useMemo(() => {
+    const searchValue = normalizeSearchValue(lenderSearch);
+
+    if (!searchValue) {
+      return lenders;
+    }
+
+    return lenders.filter((user) => {
+      const userText = normalizeSearchValue(
+        [
+          user.first_name,
+          user.last_name,
+          user.username,
+          formatUserName(user),
+        ].join(" "),
+      );
+
+      return userText.includes(searchValue);
+    });
+  }, [lenders, lenderSearch]);
 
   useEffect(() => {
     function handleDocumentClick(event) {
@@ -73,6 +103,7 @@ function CreateLoanForm({
   async function handleInviteNewLender() {
     try {
       setInviteLoading(true);
+      setInviteModalOpen(false);
       setDropdownOpen(false);
       setError("");
       setInfoMessage("");
@@ -84,7 +115,7 @@ function CreateLoanForm({
       }
 
       setInfoMessage(
-        "Приглашение отправлено. После входа пользователя список кредиторов обновится автоматически при возврате в приложение.",
+        "Приглашение подготовлено. После входа пользователя список кредиторов обновится автоматически при возврате в приложение.",
       );
     } catch (currentError) {
       console.error(currentError);
@@ -110,6 +141,20 @@ function CreateLoanForm({
     setInfoMessage("");
     setLenderId(String(selectedUserId));
     setDropdownOpen(false);
+    setLenderSearch("");
+  }
+
+  function handleInviteClick() {
+    setDropdownOpen(false);
+    setInviteModalOpen(true);
+  }
+
+  function handleInviteCancel() {
+    if (inviteLoading) {
+      return;
+    }
+
+    setInviteModalOpen(false);
   }
 
   async function handleSubmit(e) {
@@ -153,6 +198,7 @@ function CreateLoanForm({
       setCurrency("RUB");
       setDescription("");
       setDueDate("");
+      setLenderSearch("");
     } catch (err) {
       console.error(err);
 
@@ -224,39 +270,52 @@ function CreateLoanForm({
 
             {dropdownOpen && (
               <div className="custom-dropdown-menu">
-                {hasAvailableLenders ? (
-                  lenders.map((user) => (
-                    <button
-                      type="button"
-                      key={user.id}
-                      className={`custom-dropdown-option ${
-                        String(user.id) === String(lenderId)
-                          ? "selected"
-                          : ""
-                      }`}
-                      onClick={() => handleLenderSelect(user.id)}
-                    >
-                      {formatUserName(user)}
-                    </button>
-                  ))
-                ) : (
-                  <div className="custom-dropdown-empty">
-                    Нет доступных кредиторов
-                  </div>
-                )}
-
-                <div className="custom-dropdown-divider" />
+                <div className="custom-dropdown-search-box">
+                  <input
+                    type="text"
+                    value={lenderSearch}
+                    onChange={(e) => setLenderSearch(e.target.value)}
+                    placeholder="Поиск кредитора"
+                    className="custom-dropdown-search"
+                    autoFocus
+                  />
+                </div>
 
                 <button
                   type="button"
-                  className="custom-dropdown-option invite-option"
-                  onClick={handleInviteNewLender}
+                  className="custom-dropdown-option invite-option pinned"
+                  onClick={handleInviteClick}
                   disabled={loading || inviteLoading}
                 >
                   {inviteLoading
                     ? "Создаём ссылку..."
                     : "👤 Пригласить нового кредитора"}
                 </button>
+
+                <div className="custom-dropdown-divider" />
+
+                <div className="custom-dropdown-scroll">
+                  {hasAvailableLenders && filteredLenders.length > 0 ? (
+                    filteredLenders.map((user) => (
+                      <button
+                        type="button"
+                        key={user.id}
+                        className={`custom-dropdown-option ${
+                          String(user.id) === String(lenderId)
+                            ? "selected"
+                            : ""
+                        }`}
+                        onClick={() => handleLenderSelect(user.id)}
+                      >
+                        {formatUserName(user)}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="custom-dropdown-empty">
+                      Кредитор не найден
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -329,6 +388,41 @@ function CreateLoanForm({
           {loading ? "Отправка..." : "Запросить займ"}
         </button>
       </form>
+
+      {inviteModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h3>
+              Отправить приглашение?
+            </h3>
+
+            <p>
+              Telegram откроет окно отправки сообщения. После этого нужно вручную нажать кнопку отправки в Telegram.
+            </p>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                onClick={handleInviteNewLender}
+                disabled={inviteLoading}
+              >
+                {inviteLoading
+                  ? "Создаём ссылку..."
+                  : "Отправить приглашение"}
+              </button>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleInviteCancel}
+                disabled={inviteLoading}
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
