@@ -117,6 +117,38 @@ def format_user_name(user: User | None) -> str:
     return name
 
 
+def get_connected_user_ids(
+    users: list[User],
+    current_user_id: int,
+) -> set[int]:
+    graph: dict[int, set[int]] = {}
+
+    for user in users:
+        graph.setdefault(user.id, set())
+
+        if user.invited_by_user_id is not None:
+            graph.setdefault(user.invited_by_user_id, set())
+            graph[user.id].add(user.invited_by_user_id)
+            graph[user.invited_by_user_id].add(user.id)
+
+    visited = set()
+    queue = [current_user_id]
+
+    while queue:
+        user_id = queue.pop(0)
+
+        if user_id in visited:
+            continue
+
+        visited.add(user_id)
+
+        for connected_user_id in graph.get(user_id, set()):
+            if connected_user_id not in visited:
+                queue.append(connected_user_id)
+
+    return visited
+
+
 @router.get("/me", response_model=UserRead)
 def get_me(
     current_user: User = Depends(get_current_user),
@@ -151,28 +183,33 @@ def get_available_lenders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    network_conditions = [
-        User.invited_by_user_id == current_user.id,
-    ]
-
-    if current_user.invited_by_user_id is not None:
-        network_conditions.append(
-            User.id == current_user.invited_by_user_id
-        )
-
-    result = db.execute(
-        select(User)
-        .where(
-            User.id != current_user.id,
-            or_(*network_conditions),
-        )
-        .order_by(
+    users_result = db.execute(
+        select(User).order_by(
             User.first_name.asc(),
             User.id.asc(),
         )
     )
 
-    return result.scalars().all()
+    all_users = users_result.scalars().all()
+
+    if current_user.role == "admin":
+        return [
+            user
+            for user in all_users
+            if user.id != current_user.id
+        ]
+
+    connected_user_ids = get_connected_user_ids(
+        users=all_users,
+        current_user_id=current_user.id,
+    )
+
+    return [
+        user
+        for user in all_users
+        if user.id != current_user.id
+        and user.id in connected_user_ids
+    ]
 
 
 @router.get("/users/me/summary", response_model=UserSummaryResponse)

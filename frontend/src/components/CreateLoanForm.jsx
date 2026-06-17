@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { getMyInviteLink } from "../api/users";
 import { runTelegramInviteFlow } from "../utils/telegramInvite";
@@ -23,12 +23,15 @@ function CreateLoanForm({
   onCreate,
   onInviteSent,
 }) {
+  const dropdownRef = useRef(null);
+
   const [lenderId, setLenderId] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("RUB");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
 
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [error, setError] = useState("");
@@ -36,13 +39,41 @@ function CreateLoanForm({
 
   const hasAvailableLenders = lenders.length > 0;
 
-  function getSelectedLender(lenderIdValue) {
-    return lenders.find((user) => Number(user.id) === lenderIdValue);
-  }
+  const selectedLender = lenders.find(
+    (user) => String(user.id) === String(lenderId),
+  );
+
+  const selectedLenderText = selectedLender
+    ? formatUserName(selectedLender)
+    : "Выберите кредитора";
+
+  useEffect(() => {
+    function handleDocumentClick(event) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
+        setDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener(
+      "mousedown",
+      handleDocumentClick,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleDocumentClick,
+      );
+    };
+  }, []);
 
   async function handleInviteNewLender() {
     try {
       setInviteLoading(true);
+      setDropdownOpen(false);
       setError("");
       setInfoMessage("");
 
@@ -53,24 +84,32 @@ function CreateLoanForm({
       }
 
       setInfoMessage(
-        "Приглашение отправлено. После входа пользователя список кредиторов обновится автоматически при возврате в приложение."
+        "Приглашение отправлено. После входа пользователя список кредиторов обновится автоматически при возврате в приложение.",
       );
     } catch (currentError) {
       console.error(currentError);
 
       setError(
-        "Не удалось создать ссылку приглашения"
+        "Не удалось создать ссылку приглашения",
       );
     } finally {
       setInviteLoading(false);
-      setLenderId("");
     }
   }
 
-  function handleLenderChange(e) {
+  function handleDropdownToggle() {
+    if (loading || inviteLoading) {
+      return;
+    }
+
+    setDropdownOpen((currentValue) => !currentValue);
+  }
+
+  function handleLenderSelect(selectedUserId) {
     setError("");
     setInfoMessage("");
-    setLenderId(e.target.value);
+    setLenderId(String(selectedUserId));
+    setDropdownOpen(false);
   }
 
   async function handleSubmit(e) {
@@ -81,18 +120,17 @@ function CreateLoanForm({
 
     const lenderIdValue = Number(lenderId);
     const amountValue = Number(amount);
-    const selectedLender = getSelectedLender(lenderIdValue);
 
     if (!selectedLender) {
       setError(
-        "Выберите кредитора из списка доступных пользователей"
+        "Выберите кредитора из списка доступных пользователей",
       );
       return;
     }
 
     if (!amountValue || amountValue <= 0) {
       setError(
-        "Сумма должна быть больше 0"
+        "Сумма должна быть больше 0",
       );
       return;
     }
@@ -120,7 +158,7 @@ function CreateLoanForm({
 
       setError(
         err.response?.data?.detail ||
-          "Не удалось запросить займ"
+          "Не удалось запросить займ",
       );
     } finally {
       setLoading(false);
@@ -154,60 +192,74 @@ function CreateLoanForm({
       )}
 
       <form onSubmit={handleSubmit}>
-        <div
-          style={{
-            display: "block",
-            width: "100%",
-            marginBottom: "18px",
-          }}
-        >
-          <button
-            type="button"
-            onClick={handleInviteNewLender}
-            disabled={loading || inviteLoading}
-            style={{
-              display: "block",
-              width: "100%",
-              minHeight: "46px",
-              padding: "12px 14px",
-              border: "1px solid #229ed9",
-              borderRadius: "12px",
-              background: loading || inviteLoading ? "#9ccfeb" : "#229ed9",
-              color: "#ffffff",
-              fontSize: "15px",
-              fontWeight: "700",
-              lineHeight: "20px",
-              textAlign: "center",
-              cursor: loading || inviteLoading ? "not-allowed" : "pointer",
-            }}
-          >
-            {inviteLoading
-              ? "Создаём ссылку..."
-              : "+ Пригласить нового кредитора"}
-          </button>
-        </div>
-
         <label className="form-field">
           <span>Кредитор</span>
 
-          <select
-            value={lenderId}
-            onChange={handleLenderChange}
-            disabled={loading || inviteLoading || !hasAvailableLenders}
+          <div
+            className="custom-dropdown"
+            ref={dropdownRef}
           >
-            <option value="">
-              Выберите кредитора
-            </option>
-
-            {lenders.map((user) => (
-              <option
-                key={user.id}
-                value={user.id}
+            <button
+              type="button"
+              className={`custom-dropdown-toggle ${
+                dropdownOpen ? "open" : ""
+              }`}
+              onClick={handleDropdownToggle}
+              disabled={loading || inviteLoading}
+            >
+              <span
+                className={
+                  selectedLender
+                    ? "custom-dropdown-value"
+                    : "custom-dropdown-placeholder"
+                }
               >
-                {formatUserName(user)}
-              </option>
-            ))}
-          </select>
+                {selectedLenderText}
+              </span>
+
+              <span className="custom-dropdown-arrow">
+                ▾
+              </span>
+            </button>
+
+            {dropdownOpen && (
+              <div className="custom-dropdown-menu">
+                {hasAvailableLenders ? (
+                  lenders.map((user) => (
+                    <button
+                      type="button"
+                      key={user.id}
+                      className={`custom-dropdown-option ${
+                        String(user.id) === String(lenderId)
+                          ? "selected"
+                          : ""
+                      }`}
+                      onClick={() => handleLenderSelect(user.id)}
+                    >
+                      {formatUserName(user)}
+                    </button>
+                  ))
+                ) : (
+                  <div className="custom-dropdown-empty">
+                    Нет доступных кредиторов
+                  </div>
+                )}
+
+                <div className="custom-dropdown-divider" />
+
+                <button
+                  type="button"
+                  className="custom-dropdown-option invite-option"
+                  onClick={handleInviteNewLender}
+                  disabled={loading || inviteLoading}
+                >
+                  {inviteLoading
+                    ? "Создаём ссылку..."
+                    : "👤 Пригласить нового кредитора"}
+                </button>
+              </div>
+            )}
+          </div>
         </label>
 
         <label className="form-field">

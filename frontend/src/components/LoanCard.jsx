@@ -143,7 +143,7 @@ function LoanCard({
       </div>
 
       {canConfirmOrReject && (
-        <div className="actions sticky-actions">
+        <div className="actions loan-actions">
           <button onClick={() => onConfirm(loan.id)}>
             Подтвердить
           </button>
@@ -163,23 +163,25 @@ function LoanCard({
         />
       )}
 
-      {canMarkPaid && (
-        <button
-          className="full-width sticky-actions"
-          onClick={() => onMarkPaid(loan.id)}
-        >
-          {markPaidButtonText}
-        </button>
-      )}
+      <div className="loan-actions-stack">
+        {canMarkPaid && (
+          <button
+            className="full-width"
+            onClick={() => onMarkPaid(loan.id)}
+          >
+            {markPaidButtonText}
+          </button>
+        )}
 
-      <button
-        className="full-width"
-        onClick={handleToggleHistory}
-      >
-        {historyVisible
-          ? "Скрыть историю погашений"
-          : "Показать историю погашений"}
-      </button>
+        <button
+          className="full-width secondary-button"
+          onClick={handleToggleHistory}
+        >
+          {historyVisible
+            ? "Скрыть историю погашений"
+            : "Показать историю погашений"}
+        </button>
+      </div>
 
       {historyLoading && (
         <p className="muted">Загружаем историю...</p>
