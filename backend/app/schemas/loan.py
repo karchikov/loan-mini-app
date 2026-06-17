@@ -2,9 +2,17 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.user import UserShortResponse
+
+
+ALLOWED_CURRENCIES = {
+    "RUB",
+    "USD",
+    "USDT",
+    "USDC",
+}
 
 
 class LoanStatus(str, Enum):
@@ -28,6 +36,18 @@ class LoanBase(BaseModel):
     currency: str = "RUB"
     description: str | None = None
     due_date: datetime | None = None
+
+    @field_validator("currency")
+    @classmethod
+    def validate_currency(cls, value: str) -> str:
+        normalized_value = value.strip().upper()
+
+        if normalized_value not in ALLOWED_CURRENCIES:
+            raise ValueError(
+                "Currency must be one of: RUB, USD, USDT, USDC"
+            )
+
+        return normalized_value
 
 
 class LoanCreate(LoanBase):

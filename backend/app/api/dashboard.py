@@ -120,6 +120,7 @@ def get_dashboard_loans(
                 Loan.lender_id,
                 Loan.borrower_id,
                 Loan.amount,
+                Loan.currency,
                 Loan.description,
                 Loan.status,
                 Loan.created_at,

@@ -1,12 +1,14 @@
-export function formatMoney(value) {
+export function formatMoney(value, currency = "") {
   if (value === null || value === undefined) {
-    return "0";
+    return currency ? `0.00 ${currency}` : "0.00";
   }
 
-  return Number(value).toLocaleString("ru-RU", {
+  const formattedValue = Number(value).toLocaleString("ru-RU", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+  return currency ? `${formattedValue} ${currency}` : formattedValue;
 }
 
 export function formatDate(value) {

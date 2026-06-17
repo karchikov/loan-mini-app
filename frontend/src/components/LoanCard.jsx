@@ -77,6 +77,8 @@ function LoanCard({
   const statusLabel =
     LOAN_STATUS_LABELS[loan.status] || loan.status;
 
+  const currency = loan.currency || "RUB";
+
   const markPaidButtonText =
     loan.status === "waiting_confirmation"
       ? "Подтвердить закрытие займа"
@@ -117,13 +119,13 @@ function LoanCard({
       </div>
 
       <div className="loan-main-amount">
-        {formatMoney(loan.amount)}
+        {formatMoney(loan.amount, currency)}
       </div>
 
       <div className="loan-balance-box">
         <span>Остаток к погашению</span>
         <strong>
-          {formatMoney(loan.remaining_balance)}
+          {formatMoney(loan.remaining_balance, currency)}
         </strong>
       </div>
 
@@ -134,6 +136,10 @@ function LoanCard({
 
         <p>
           <strong>Кредитор:</strong> {lenderName}
+        </p>
+
+        <p>
+          <strong>Валюта:</strong> {currency}
         </p>
 
         <p>
@@ -159,6 +165,7 @@ function LoanCard({
 
       {canRepay && (
         <RepayForm
+          currency={currency}
           onRepay={(amount) => onRepay(loan.id, amount)}
         />
       )}
@@ -188,7 +195,10 @@ function LoanCard({
       )}
 
       {historyVisible && !historyLoading && (
-        <RepaymentHistory repayments={repayments || []} />
+        <RepaymentHistory
+          repayments={repayments || []}
+          currency={currency}
+        />
       )}
     </div>
   );

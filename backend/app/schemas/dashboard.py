@@ -40,6 +40,7 @@ class DashboardLoanResponse(BaseModel):
     borrower: UserShortResponse
 
     amount: Decimal
+    currency: str
     description: str | None
     status: LoanStatus
     remaining_balance: Decimal

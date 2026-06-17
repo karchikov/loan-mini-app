@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 def format_money(amount: Decimal) -> str:
-    value = amount.quantize(Decimal("1"))
+    value = amount.quantize(Decimal("0.01"))
 
-    return f"{value:,.0f}".replace(",", " ")
+    return f"{value:,.2f}".replace(",", " ")
 
 
 def get_user_name(user: User | None) -> str:

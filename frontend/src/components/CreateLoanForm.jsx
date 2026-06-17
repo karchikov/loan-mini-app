@@ -3,6 +3,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getMyInviteLink } from "../api/users";
 import { runTelegramInviteFlow } from "../utils/telegramInvite";
 
+const AVAILABLE_CURRENCIES = [
+  "RUB",
+  "USD",
+  "USDT",
+  "USDC",
+];
+
 function formatUserName(user) {
   const nameParts = [
     user.first_name,
@@ -180,6 +187,13 @@ function CreateLoanForm({
       return;
     }
 
+    if (!AVAILABLE_CURRENCIES.includes(currency)) {
+      setError(
+        "Выберите корректную валюту займа",
+      );
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -219,7 +233,7 @@ function CreateLoanForm({
         </h2>
 
         <p>
-          Выберите кредитора из вашей Telegram-сети, укажите сумму и описание заявки.
+          Выберите кредитора из вашей Telegram-сети, укажите сумму, валюту и описание заявки.
         </p>
       </div>
 
@@ -341,7 +355,14 @@ function CreateLoanForm({
             onChange={(e) => setCurrency(e.target.value)}
             disabled={loading || inviteLoading || !hasAvailableLenders}
           >
-            <option value="RUB">RUB</option>
+            {AVAILABLE_CURRENCIES.map((currencyValue) => (
+              <option
+                key={currencyValue}
+                value={currencyValue}
+              >
+                {currencyValue}
+              </option>
+            ))}
           </select>
         </label>
 
