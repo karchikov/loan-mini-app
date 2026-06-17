@@ -44,7 +44,7 @@ def to_decimal(value) -> Decimal:
 
 def format_user_name(user: User | None) -> str:
     if user is None:
-        return "\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c"
+        return "Пользователь"
 
     name = user.first_name or f"User #{user.id}"
 
@@ -52,6 +52,38 @@ def format_user_name(user: User | None) -> str:
         return f"{name} (@{user.username})"
 
     return name
+
+
+def get_connected_user_ids(
+    users: list[User],
+    current_user_id: int,
+) -> set[int]:
+    graph: dict[int, set[int]] = {}
+
+    for user in users:
+        graph.setdefault(user.id, set())
+
+        if user.invited_by_user_id is not None:
+            graph.setdefault(user.invited_by_user_id, set())
+            graph[user.id].add(user.invited_by_user_id)
+            graph[user.invited_by_user_id].add(user.id)
+
+    visited = set()
+    queue = [current_user_id]
+
+    while queue:
+        user_id = queue.pop(0)
+
+        if user_id in visited:
+            continue
+
+        visited.add(user_id)
+
+        for connected_user_id in graph.get(user_id, set()):
+            if connected_user_id not in visited:
+                queue.append(connected_user_id)
+
+    return visited
 
 
 def get_dashboard_loans(
@@ -201,16 +233,7 @@ def get_dashboard_available_lenders(
     db: Session,
     current_user: User,
 ) -> list[User]:
-    network_conditions = [
-        User.invited_by_user_id == current_user.id,
-    ]
-
-    if current_user.invited_by_user_id is not None:
-        network_conditions.append(
-            User.id == current_user.invited_by_user_id
-        )
-
-    result = db.execute(
+    query = (
         select(User)
         .options(
             load_only(
@@ -218,11 +241,11 @@ def get_dashboard_available_lenders(
                 User.username,
                 User.first_name,
                 User.last_name,
+                User.invited_by_user_id,
             )
         )
         .where(
-            User.id != current_user.id,
-            or_(*network_conditions),
+            User.id != current_user.id
         )
         .order_by(
             User.first_name.asc(),
@@ -230,7 +253,22 @@ def get_dashboard_available_lenders(
         )
     )
 
-    return result.scalars().all()
+    result = db.execute(query)
+    all_users = result.scalars().all()
+
+    if is_admin(current_user):
+        return all_users
+
+    connected_user_ids = get_connected_user_ids(
+        users=all_users + [current_user],
+        current_user_id=current_user.id,
+    )
+
+    return [
+        user
+        for user in all_users
+        if user.id in connected_user_ids
+    ]
 
 
 def build_dashboard_history(
@@ -256,16 +294,10 @@ def build_dashboard_history(
             UserHistoryItemResponse(
                 id=f"loan-{loan.id}-created",
                 type="loan_created",
-                title=(
-                    "\u0421\u043e\u0437\u0434\u0430\u043d\u0430 "
-                    "\u0437\u0430\u044f\u0432\u043a\u0430 "
-                    "\u043d\u0430 \u0437\u0430\u0439\u043c"
-                ),
+                title="Создана заявка на займ",
                 description=(
-                    f"{borrower_name} "
-                    "\u0437\u0430\u043f\u0440\u043e\u0441\u0438\u043b "
-                    "\u0437\u0430\u0439\u043c \u0443 "
-                    f"{lender_name}"
+                    f"{borrower_name} запросил "
+                    f"займ у {lender_name}"
                 ),
                 amount=loan.amount,
                 created_at=loan.created_at,
@@ -277,15 +309,9 @@ def build_dashboard_history(
                 UserHistoryItemResponse(
                     id=f"loan-{loan.id}-paid",
                     type="loan_paid",
-                    title=(
-                        "\u0417\u0430\u0439\u043c "
-                        "\u043f\u043e\u0433\u0430\u0448\u0435\u043d"
-                    ),
+                    title="Займ погашен",
                     description=(
-                        "\u0417\u0430\u0439\u043c "
-                        f"#{loan.id}"
-                        " \u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e "
-                        "\u043f\u043e\u0433\u0430\u0448\u0435\u043d"
+                        f"Займ #{loan.id} полностью погашен"
                     ),
                     amount=loan.amount,
                     created_at=loan.updated_at,
@@ -297,15 +323,9 @@ def build_dashboard_history(
                 UserHistoryItemResponse(
                     id=f"loan-{loan.id}-rejected",
                     type="loan_rejected",
-                    title=(
-                        "\u0417\u0430\u0439\u043c "
-                        "\u043e\u0442\u043a\u043b\u043e\u043d\u0451\u043d"
-                    ),
+                    title="Займ отклонён",
                     description=(
-                        "\u0417\u0430\u0439\u043c "
-                        f"#{loan.id}"
-                        " \u0431\u044b\u043b "
-                        "\u043e\u0442\u043a\u043b\u043e\u043d\u0451\u043d"
+                        f"Займ #{loan.id} был отклонён"
                     ),
                     amount=loan.amount,
                     created_at=loan.updated_at,
@@ -317,14 +337,9 @@ def build_dashboard_history(
             UserHistoryItemResponse(
                 id=f"repayment-{repayment.id}",
                 type="repayment",
-                title=(
-                    "\u041f\u043b\u0430\u0442\u0451\u0436 "
-                    "\u043f\u043e \u0437\u0430\u0439\u043c\u0443"
-                ),
+                title="Платёж по займу",
                 description=(
-                    "\u041f\u043b\u0430\u0442\u0451\u0436 "
-                    "\u043f\u043e \u0437\u0430\u0439\u043c\u0443 "
-                    f"#{repayment.loan_id}"
+                    f"Платёж по займу #{repayment.loan_id}"
                 ),
                 amount=repayment.amount,
                 created_at=repayment.created_at,
