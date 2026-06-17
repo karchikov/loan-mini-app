@@ -32,6 +32,19 @@ function formatUser(userData, fallbackId) {
   return name;
 }
 
+function formatAnnualInterestRate(value) {
+  const rate = Number(value || 0);
+
+  if (Number.isNaN(rate)) {
+    return "0%";
+  }
+
+  return `${rate.toLocaleString("ru-RU", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}%`;
+}
+
 function LoanCard({
   loan,
   user,
@@ -140,6 +153,11 @@ function LoanCard({
 
         <p>
           <strong>Валюта:</strong> {currency}
+        </p>
+
+        <p>
+          <strong>Ставка:</strong>{" "}
+          {formatAnnualInterestRate(loan.annual_interest_rate)} годовых
         </p>
 
         <p>

@@ -40,6 +40,7 @@ class DashboardLoanResponse(BaseModel):
     borrower: UserShortResponse
 
     amount: Decimal
+    annual_interest_rate: Decimal
     currency: str
     description: str | None
     status: LoanStatus

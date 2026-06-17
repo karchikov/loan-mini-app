@@ -40,6 +40,7 @@ function CreateLoanForm({
 
   const [lenderId, setLenderId] = useState("");
   const [amount, setAmount] = useState("");
+  const [annualInterestRate, setAnnualInterestRate] = useState("");
   const [currency, setCurrency] = useState("RUB");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -172,6 +173,7 @@ function CreateLoanForm({
 
     const lenderIdValue = Number(lenderId);
     const amountValue = Number(amount);
+    const annualInterestRateValue = Number(annualInterestRate);
 
     if (!selectedLender) {
       setError(
@@ -183,6 +185,18 @@ function CreateLoanForm({
     if (!amountValue || amountValue <= 0) {
       setError(
         "Сумма должна быть больше 0",
+      );
+      return;
+    }
+
+    if (
+      annualInterestRate === "" ||
+      Number.isNaN(annualInterestRateValue) ||
+      annualInterestRateValue < 0 ||
+      annualInterestRateValue > 1000
+    ) {
+      setError(
+        "Процентная ставка должна быть от 0 до 1000",
       );
       return;
     }
@@ -200,6 +214,7 @@ function CreateLoanForm({
       const payload = {
         lender_id: lenderIdValue,
         amount: amountValue,
+        annual_interest_rate: annualInterestRateValue,
         currency,
         description: description.trim() || null,
         due_date: dueDate ? `${dueDate}T00:00:00` : null,
@@ -209,6 +224,7 @@ function CreateLoanForm({
 
       setLenderId("");
       setAmount("");
+      setAnnualInterestRate("");
       setCurrency("RUB");
       setDescription("");
       setDueDate("");
@@ -343,6 +359,21 @@ function CreateLoanForm({
             placeholder="Например: 5000"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            disabled={loading || inviteLoading || !hasAvailableLenders}
+          />
+        </label>
+
+        <label className="form-field">
+          <span>Процентная ставка, % годовых</span>
+
+          <input
+            type="number"
+            min="0"
+            max="1000"
+            step="0.01"
+            placeholder="Например: 12.5"
+            value={annualInterestRate}
+            onChange={(e) => setAnnualInterestRate(e.target.value)}
             disabled={loading || inviteLoading || !hasAvailableLenders}
           />
         </label>

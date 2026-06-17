@@ -51,6 +51,12 @@ class Loan(Base):
         nullable=False,
     )
 
+    annual_interest_rate: Mapped[Decimal] = mapped_column(
+        Numeric(7, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+    )
+
     currency: Mapped[str] = mapped_column(
         String(10),
         nullable=False,

@@ -112,6 +112,7 @@ def create_loan(
         lender_id=lender.id,
         borrower_id=current_user.id,
         amount=loan_data.amount,
+        annual_interest_rate=loan_data.annual_interest_rate,
         currency=loan_data.currency,
         description=loan_data.description,
         due_date=loan_data.due_date,

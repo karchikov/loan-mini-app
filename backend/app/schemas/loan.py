@@ -33,6 +33,12 @@ class LoanBase(BaseModel):
         description="Loan amount must be greater than zero",
     )
 
+    annual_interest_rate: Decimal = Field(
+        ge=0,
+        le=1000,
+        description="Annual interest rate must be between 0 and 1000 percent",
+    )
+
     currency: str = "RUB"
     description: str | None = None
     due_date: datetime | None = None
@@ -87,6 +93,7 @@ class LoanResponse(BaseModel):
     borrower: UserShortResponse
 
     amount: Decimal
+    annual_interest_rate: Decimal
     currency: str
 
     description: str | None
