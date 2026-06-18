@@ -1,16 +1,18 @@
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.loan import Loan, LoanStatus
+from app.models.loan_interest_ledger import LoanInterestLedger
 from app.models.repayment import Repayment
 from app.models.user import User
 from app.schemas.dashboard import DashboardResponse
 from app.schemas.user import UserHistoryItemResponse, UserSummaryResponse
+from app.services.loan_balance_service import calculate_remaining_balance_from_values
 
 
 router = APIRouter(
@@ -37,9 +39,13 @@ def loan_belongs_to_user(user_id: int):
 
 def to_decimal(value) -> Decimal:
     if value is None:
-        return Decimal("0")
+        return Decimal("0.00")
 
     return Decimal(value)
+
+
+def normalize_money(value: Decimal) -> Decimal:
+    return to_decimal(value).quantize(Decimal("0.01"))
 
 
 def format_user_name(user: User | None) -> str:
@@ -94,11 +100,26 @@ def get_dashboard_loans(
         select(
             Repayment.loan_id.label("loan_id"),
             func.coalesce(
-                func.sum(Repayment.amount),
+                func.sum(Repayment.principal_amount),
                 0,
-            ).label("total_paid"),
+            ).label("principal_paid"),
         )
         .group_by(Repayment.loan_id)
+        .subquery()
+    )
+
+    interest_totals = (
+        select(
+            LoanInterestLedger.loan_id.label("loan_id"),
+            func.coalesce(
+                func.sum(
+                    LoanInterestLedger.interest_amount
+                    - LoanInterestLedger.paid_amount
+                ),
+                0,
+            ).label("unpaid_interest"),
+        )
+        .group_by(LoanInterestLedger.loan_id)
         .subquery()
     )
 
@@ -106,13 +127,21 @@ def get_dashboard_loans(
         select(
             Loan,
             func.coalesce(
-                repayment_totals.c.total_paid,
+                repayment_totals.c.principal_paid,
                 0,
-            ).label("total_paid"),
+            ).label("principal_paid"),
+            func.coalesce(
+                interest_totals.c.unpaid_interest,
+                0,
+            ).label("unpaid_interest"),
         )
         .outerjoin(
             repayment_totals,
             repayment_totals.c.loan_id == Loan.id,
+        )
+        .outerjoin(
+            interest_totals,
+            interest_totals.c.loan_id == Loan.id,
         )
         .options(
             load_only(
@@ -150,65 +179,49 @@ def get_dashboard_loans(
 
     loans = []
 
-    for loan, total_paid in result.all():
-        remaining_balance = loan.amount - to_decimal(total_paid)
+    for loan, principal_paid, unpaid_interest in result.all():
+        loan.remaining_balance = calculate_remaining_balance_from_values(
+            loan_amount=loan.amount,
+            principal_paid=principal_paid,
+            unpaid_interest=unpaid_interest,
+        )
 
-        if remaining_balance < 0:
-            remaining_balance = Decimal("0")
-
-        loan.remaining_balance = remaining_balance
         loans.append(loan)
 
     return loans
 
 
 def get_dashboard_summary(
-    db: Session,
+    loans: list[Loan],
     current_user: User,
 ) -> UserSummaryResponse:
-    result = db.execute(
-        select(
-            func.coalesce(
-                func.sum(
-                    case(
-                        (
-                            Loan.borrower_id == current_user.id,
-                            Loan.amount,
-                        ),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("my_debts"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (
-                            Loan.lender_id == current_user.id,
-                            Loan.amount,
-                        ),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("owed_to_me"),
-            func.count(Loan.id).label("active_loans_count"),
-        ).where(
-            Loan.status.in_(ACTIVE_LOAN_STATUSES),
-            loan_belongs_to_user(current_user.id),
-        )
-    )
+    my_debts = Decimal("0.00")
+    owed_to_me = Decimal("0.00")
+    active_loans_count = 0
 
-    row = result.one()
+    for loan in loans:
+        if loan.status not in ACTIVE_LOAN_STATUSES:
+            continue
 
-    my_debts = to_decimal(row.my_debts)
-    owed_to_me = to_decimal(row.owed_to_me)
+        if (
+            loan.borrower_id != current_user.id
+            and loan.lender_id != current_user.id
+        ):
+            continue
+
+        active_loans_count += 1
+
+        if loan.borrower_id == current_user.id:
+            my_debts += loan.remaining_balance
+
+        if loan.lender_id == current_user.id:
+            owed_to_me += loan.remaining_balance
 
     return UserSummaryResponse(
-        my_debts=my_debts,
-        owed_to_me=owed_to_me,
-        balance=owed_to_me - my_debts,
-        active_loans_count=row.active_loans_count,
+        my_debts=normalize_money(my_debts),
+        owed_to_me=normalize_money(owed_to_me),
+        balance=normalize_money(owed_to_me - my_debts),
+        active_loans_count=active_loans_count,
     )
 
 
@@ -370,7 +383,7 @@ def get_dashboard(
     )
 
     summary = get_dashboard_summary(
-        db=db,
+        loans=loans,
         current_user=current_user,
     )
 

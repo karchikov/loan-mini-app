@@ -1,13 +1,13 @@
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app.models.loan import Loan, LoanStatus
 from app.models.loan_interest_ledger import LoanInterestLedger
-from app.services.loan_service import calculate_remaining_balance
+from app.services.loan_balance_service import calculate_principal_remaining
 
 
 def calculate_daily_interest(
@@ -41,7 +41,10 @@ def process_daily_interest_accrual(db: Session) -> int:
     created = 0
 
     for loan in loans:
-        principal = calculate_remaining_balance(db=db, loan=loan)
+        principal = calculate_principal_remaining(
+            db=db,
+            loan=loan,
+        )
 
         if principal <= 0:
             continue

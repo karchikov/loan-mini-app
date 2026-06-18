@@ -1,5 +1,4 @@
-import enum
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
@@ -58,6 +57,13 @@ class LoanInterestLedger(Base):
     interest_amount: Mapped[Decimal] = mapped_column(
         Numeric(14, 2),
         nullable=False,
+    )
+
+    paid_amount: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+        server_default="0.00",
     )
 
     created_at: Mapped[datetime] = mapped_column(

@@ -78,6 +78,8 @@ class RepaymentResponse(BaseModel):
     id: int
     loan_id: int
     amount: Decimal
+    interest_amount: Decimal
+    principal_amount: Decimal
     created_at: datetime
 
 

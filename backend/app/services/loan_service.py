@@ -1,13 +1,17 @@
 from decimal import Decimal
 
 from fastapi import HTTPException
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.loan import Loan, LoanStatus
 from app.models.repayment import Repayment
 from app.models.user import User
 from app.schemas.loan import LoanCreate, RepaymentCreate
+from app.services.loan_balance_service import (
+    allocate_repayment_interest_first,
+    calculate_remaining_balance,
+)
 from app.services.telegram_notifications import (
     notify_final_repayment_submitted,
     notify_loan_confirmed,
@@ -37,31 +41,6 @@ def loan_with_users_query():
         joinedload(Loan.lender),
         joinedload(Loan.borrower),
     )
-
-
-def calculate_remaining_balance(
-    db: Session,
-    loan: Loan,
-) -> Decimal:
-    result = db.execute(
-        select(
-            func.coalesce(
-                func.sum(Repayment.amount),
-                0,
-            )
-        ).where(
-            Repayment.loan_id == loan.id
-        )
-    )
-
-    total_paid = result.scalar_one()
-
-    remaining = loan.amount - total_paid
-
-    if remaining < 0:
-        remaining = Decimal("0")
-
-    return remaining
 
 
 def enrich_loan_with_balance(
@@ -370,9 +349,17 @@ def mark_loan_as_paid(
             )
     else:
         if remaining_balance > 0:
+            allocation = allocate_repayment_interest_first(
+                db=db,
+                loan=loan,
+                payment_amount=remaining_balance,
+            )
+
             repayment = Repayment(
                 loan_id=loan.id,
-                amount=remaining_balance,
+                amount=allocation.total_amount,
+                interest_amount=allocation.interest_amount,
+                principal_amount=allocation.principal_amount,
             )
 
             db.add(repayment)
@@ -446,20 +433,10 @@ def create_repayment(
             detail="Repayment amount must be greater than zero",
         )
 
-    paid_result = db.execute(
-        select(
-            func.coalesce(
-                func.sum(Repayment.amount),
-                0,
-            )
-        ).where(
-            Repayment.loan_id == loan.id
-        )
+    remaining_balance = calculate_remaining_balance(
+        db=db,
+        loan=loan,
     )
-
-    total_paid = paid_result.scalar_one()
-
-    remaining_balance = loan.amount - total_paid
 
     if repayment_data.amount > remaining_balance:
         raise HTTPException(
@@ -467,15 +444,25 @@ def create_repayment(
             detail="Repayment amount exceeds remaining balance",
         )
 
+    allocation = allocate_repayment_interest_first(
+        db=db,
+        loan=loan,
+        payment_amount=repayment_data.amount,
+    )
+
     repayment = Repayment(
         loan_id=loan.id,
-        amount=repayment_data.amount,
+        amount=allocation.total_amount,
+        interest_amount=allocation.interest_amount,
+        principal_amount=allocation.principal_amount,
     )
 
     db.add(repayment)
+    db.flush()
 
-    new_remaining_balance = (
-        remaining_balance - repayment_data.amount
+    new_remaining_balance = calculate_remaining_balance(
+        db=db,
+        loan=loan,
     )
 
     if new_remaining_balance <= 0:

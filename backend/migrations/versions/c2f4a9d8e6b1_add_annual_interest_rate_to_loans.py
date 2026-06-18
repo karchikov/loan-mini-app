@@ -28,12 +28,6 @@ def upgrade() -> None:
         ),
     )
 
-    op.alter_column(
-        "loans",
-        "annual_interest_rate",
-        server_default=None,
-    )
-
 
 def downgrade() -> None:
     op.drop_column("loans", "annual_interest_rate")
