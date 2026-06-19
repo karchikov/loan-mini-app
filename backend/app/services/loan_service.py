@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException
@@ -477,6 +478,7 @@ def create_repayment(
     else:
         loan.status = LoanStatus.PARTIALLY_PAID
 
+    loan.updated_at = datetime.now(timezone.utc)
     loan.remaining_balance = new_remaining_balance
 
     db.commit()
