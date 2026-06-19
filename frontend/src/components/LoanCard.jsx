@@ -3,7 +3,7 @@ import { useState } from "react";
 import RepaymentHistory from "./RepaymentHistory";
 import RepayForm from "./RepayForm";
 
-import { formatMoney } from "../utils/formatters";
+import { formatDate, formatMoney } from "../utils/formatters";
 
 const LOAN_STATUS_LABELS = {
   draft: "Ожидает подтверждения кредитора",
@@ -47,6 +47,22 @@ function formatAnnualInterestRate(value) {
   })}%`;
 }
 
+function formatDateOnly(value) {
+  if (!value) {
+    return "начислений пока нет";
+  }
+
+  if (typeof value === "string" && value.includes("-")) {
+    const [year, month, day] = value.split("-");
+
+    if (year && month && day) {
+      return `${day}.${month}.${year}`;
+    }
+  }
+
+  return formatDate(value);
+}
+
 function LoanCard({
   loan,
   user,
@@ -62,6 +78,8 @@ function LoanCard({
 }) {
   const [historyVisible, setHistoryVisible] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [processingRepaymentId, setProcessingRepaymentId] = useState(null);
+  const [repaymentActionError, setRepaymentActionError] = useState("");
 
   const isBorrower = user.id === loan.borrower_id;
   const isLender = user.id === loan.lender_id;
@@ -76,8 +94,16 @@ function LoanCard({
     loan.lender_id,
   );
 
+  const pendingRepayments = Array.isArray(loan.pending_repayments)
+    ? loan.pending_repayments
+    : [];
+
   const pendingRepaymentsCount =
-    Number(loan.pending_repayments_count || 0);
+    Number(
+      loan.pending_repayments_count ||
+        pendingRepayments.length ||
+        0
+    );
 
   const hasPendingRepayments =
     pendingRepaymentsCount > 0;
@@ -103,10 +129,88 @@ function LoanCard({
 
   const currency = loan.currency || "RUB";
 
+  const principalRemaining =
+    loan.principal_remaining ?? loan.amount;
+
+  const unpaidInterest =
+    loan.unpaid_interest ?? 0;
+
   const markPaidButtonText =
     loan.status === "waiting_confirmation"
       ? "Подтвердить закрытие займа"
       : "Отметить как погашенный";
+
+  function canManagePendingRepayment(repayment) {
+    if (!repayment || !user) {
+      return false;
+    }
+
+    if (isAdmin) {
+      return true;
+    }
+
+    const wasSubmittedByCurrentUser =
+      repayment.submitted_by_user_id &&
+      repayment.submitted_by_user_id === user.id;
+
+    return (
+      isLender &&
+      !isBorrower &&
+      !wasSubmittedByCurrentUser
+    );
+  }
+
+  function shouldShowBorrowerPendingNotice(repayment) {
+    if (!repayment || !user || isAdmin) {
+      return false;
+    }
+
+    const wasSubmittedByCurrentUser =
+      repayment.submitted_by_user_id &&
+      repayment.submitted_by_user_id === user.id;
+
+    return isBorrower || wasSubmittedByCurrentUser;
+  }
+
+  async function handleConfirmPendingRepayment(repaymentId) {
+    if (!onConfirmRepayment) {
+      return;
+    }
+
+    try {
+      setRepaymentActionError("");
+      setProcessingRepaymentId(repaymentId);
+
+      await onConfirmRepayment(loan.id, repaymentId);
+    } catch (error) {
+      console.error(error);
+      setRepaymentActionError(
+        "Не удалось подтвердить платеж. Попробуйте еще раз."
+      );
+    } finally {
+      setProcessingRepaymentId(null);
+    }
+  }
+
+  async function handleRejectPendingRepayment(repaymentId) {
+    if (!onRejectRepayment) {
+      return;
+    }
+
+    try {
+      setRepaymentActionError("");
+      setProcessingRepaymentId(repaymentId);
+
+      await onRejectRepayment(loan.id, repaymentId);
+    } catch (error) {
+      console.error(error);
+      setRepaymentActionError(
+        "Не удалось отклонить платеж. Попробуйте еще раз."
+      );
+    } finally {
+      setProcessingRepaymentId(null);
+    }
+  }
 
   async function handleToggleHistory() {
     const nextVisible = !historyVisible;
@@ -151,13 +255,38 @@ function LoanCard({
         <strong>
           {formatMoney(loan.remaining_balance, currency)}
         </strong>
+
+        <p className="muted">
+          Сумма включает тело долга и начисленные проценты.
+        </p>
+      </div>
+
+      <div className="loan-balance-box">
+        <span>Тело долга</span>
+        <strong>
+          {formatMoney(principalRemaining, currency)}
+        </strong>
+
+        <p className="muted">
+          Остаток основного долга после подтвержденных платежей.
+        </p>
+      </div>
+
+      <div className="loan-balance-box">
+        <span>Начисленные проценты</span>
+        <strong>
+          {formatMoney(unpaidInterest, currency)}
+        </strong>
+
+        <p className="muted">
+          Последнее начисление:{" "}
+          {formatDateOnly(loan.last_interest_accrual_date)}
+        </p>
       </div>
 
       {hasPendingRepayments && (
         <div className="loan-balance-box">
-          <span>
-            Ожидает подтверждения
-          </span>
+          <span>Платежи на подтверждении</span>
 
           <strong>
             {formatMoney(
@@ -167,9 +296,83 @@ function LoanCard({
           </strong>
 
           <p className="muted">
-            Платежей на подтверждении:{" "}
-            {pendingRepaymentsCount}
+            Количество платежей: {pendingRepaymentsCount}
           </p>
+
+          {repaymentActionError && (
+            <p className="form-error">
+              {repaymentActionError}
+            </p>
+          )}
+
+          {pendingRepayments.length === 0 && (
+            <p className="muted">
+              Откройте историю погашений, чтобы посмотреть платежи.
+            </p>
+          )}
+
+          {pendingRepayments.map((repayment) => {
+            const isProcessing =
+              processingRepaymentId === repayment.id;
+
+            const canManage =
+              canManagePendingRepayment(repayment);
+
+            const showBorrowerNotice =
+              shouldShowBorrowerPendingNotice(repayment);
+
+            return (
+              <div
+                key={repayment.id}
+                className="repayment-item"
+              >
+                <p>
+                  <strong>Сумма:</strong>{" "}
+                  {formatMoney(
+                    repayment.amount,
+                    currency,
+                  )}
+                </p>
+
+                <p>
+                  <strong>Дата:</strong>{" "}
+                  {formatDate(repayment.created_at)}
+                </p>
+
+                {showBorrowerNotice && (
+                  <p className="muted">
+                    Платеж отправлен кредитору на подтверждение.
+                  </p>
+                )}
+
+                {canManage && (
+                  <div className="loan-actions-stack">
+                    <button
+                      className="full-width"
+                      disabled={isProcessing}
+                      onClick={() =>
+                        handleConfirmPendingRepayment(repayment.id)
+                      }
+                    >
+                      {isProcessing
+                        ? "Обработка..."
+                        : "Подтвердить платеж"}
+                    </button>
+
+                    <button
+                      className="full-width danger-button"
+                      disabled={isProcessing}
+                      onClick={() =>
+                        handleRejectPendingRepayment(repayment.id)
+                      }
+                    >
+                      Отклонить платеж
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -227,12 +430,6 @@ function LoanCard({
           >
             {markPaidButtonText}
           </button>
-        )}
-
-        {hasPendingRepayments && (isAdmin || isLender) && (
-          <p className="muted">
-            Есть платежи на подтверждении. Откройте историю погашений.
-          </p>
         )}
 
         <button

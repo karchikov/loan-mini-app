@@ -92,6 +92,36 @@ def get_connected_user_ids(
     return visited
 
 
+def get_pending_repayments_by_loan_id(
+    db: Session,
+    loan_ids: list[int],
+) -> dict[int, list[Repayment]]:
+    if not loan_ids:
+        return {}
+
+    result = db.execute(
+        select(Repayment)
+        .where(
+            Repayment.loan_id.in_(loan_ids),
+            Repayment.status == RepaymentStatus.PENDING,
+        )
+        .order_by(
+            Repayment.created_at.desc(),
+            Repayment.id.desc(),
+        )
+    )
+
+    pending_by_loan_id: dict[int, list[Repayment]] = {}
+
+    for repayment in result.scalars().all():
+        pending_by_loan_id.setdefault(
+            repayment.loan_id,
+            [],
+        ).append(repayment)
+
+    return pending_by_loan_id
+
+
 def get_dashboard_loans(
     db: Session,
     current_user: User,
@@ -137,6 +167,9 @@ def get_dashboard_loans(
                 ),
                 0,
             ).label("unpaid_interest"),
+            func.max(
+                LoanInterestLedger.accrual_date
+            ).label("last_interest_accrual_date"),
         )
         .group_by(LoanInterestLedger.loan_id)
         .subquery()
@@ -153,6 +186,9 @@ def get_dashboard_loans(
                 interest_totals.c.unpaid_interest,
                 0,
             ).label("unpaid_interest"),
+            interest_totals.c.last_interest_accrual_date.label(
+                "last_interest_accrual_date"
+            ),
             func.coalesce(
                 pending_repayment_totals.c.pending_repayments_count,
                 0,
@@ -208,20 +244,43 @@ def get_dashboard_loans(
 
     result = db.execute(query)
 
+    rows = result.all()
+    loan_ids = [loan.id for loan, *_ in rows]
+
+    pending_repayments_by_loan_id = get_pending_repayments_by_loan_id(
+        db=db,
+        loan_ids=loan_ids,
+    )
+
     loans = []
 
     for (
         loan,
         principal_paid,
         unpaid_interest,
+        last_interest_accrual_date,
         pending_repayments_count,
         pending_repayments_total,
-    ) in result.all():
+    ) in rows:
+        principal_remaining = normalize_money(
+            to_decimal(loan.amount) - to_decimal(principal_paid)
+        )
+
+        if principal_remaining < 0:
+            principal_remaining = Decimal("0.00")
+
+        unpaid_interest = normalize_money(
+            unpaid_interest
+        )
+
+        loan.principal_remaining = principal_remaining
+        loan.unpaid_interest = unpaid_interest
         loan.remaining_balance = calculate_remaining_balance_from_values(
             loan_amount=loan.amount,
             principal_paid=principal_paid,
             unpaid_interest=unpaid_interest,
         )
+        loan.last_interest_accrual_date = last_interest_accrual_date
 
         loan.pending_repayments_count = int(
             pending_repayments_count or 0
@@ -229,6 +288,11 @@ def get_dashboard_loans(
 
         loan.pending_repayments_total = normalize_money(
             pending_repayments_total
+        )
+
+        loan.pending_repayments = pending_repayments_by_loan_id.get(
+            loan.id,
+            [],
         )
 
         loans.append(loan)

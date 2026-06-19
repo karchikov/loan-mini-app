@@ -1,8 +1,9 @@
+from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.loan import LoanStatus
+from app.schemas.loan import LoanStatus, RepaymentStatus
 from app.schemas.user import (
     UserHistoryItemResponse,
     UserShortResponse,
@@ -28,6 +29,17 @@ class DashboardAvailableLenderResponse(BaseModel):
     last_name: str | None = None
 
 
+class DashboardPendingRepaymentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    loan_id: int
+    amount: Decimal
+    status: RepaymentStatus
+    submitted_by_user_id: int | None = None
+    created_at: datetime
+
+
 class DashboardLoanResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -44,9 +56,18 @@ class DashboardLoanResponse(BaseModel):
     currency: str
     description: str | None
     status: LoanStatus
+
+    principal_remaining: Decimal = Decimal("0.00")
+    unpaid_interest: Decimal = Decimal("0.00")
     remaining_balance: Decimal
+
+    last_interest_accrual_date: date | None = None
+
     pending_repayments_count: int = 0
     pending_repayments_total: Decimal = Decimal("0.00")
+    pending_repayments: list[DashboardPendingRepaymentResponse] = Field(
+        default_factory=list
+    )
 
 
 class DashboardResponse(BaseModel):
