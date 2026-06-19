@@ -114,13 +114,19 @@ function RepaymentHistory({
           isPending &&
           loan &&
           user &&
-          (isAdmin || isCurrentUserLender) &&
-          !isCurrentUserBorrower &&
-          !wasSubmittedByCurrentUser;
+          (
+            isAdmin ||
+            (
+              isCurrentUserLender &&
+              !isCurrentUserBorrower &&
+              !wasSubmittedByCurrentUser
+            )
+          );
 
         const shouldShowBorrowerRestriction =
           isPending &&
           user &&
+          !isAdmin &&
           (isCurrentUserBorrower || wasSubmittedByCurrentUser);
 
         const isProcessing =

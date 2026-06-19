@@ -566,7 +566,8 @@ def confirm_repayment(
         )
 
     if (
-        repayment.submitted_by_user_id == current_user.id
+        not is_admin(current_user)
+        and repayment.submitted_by_user_id == current_user.id
         and loan.borrower_id == current_user.id
     ):
         raise HTTPException(
@@ -680,7 +681,8 @@ def reject_repayment(
         )
 
     if (
-        repayment.submitted_by_user_id == current_user.id
+        not is_admin(current_user)
+        and repayment.submitted_by_user_id == current_user.id
         and loan.borrower_id == current_user.id
     ):
         raise HTTPException(
