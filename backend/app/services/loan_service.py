@@ -43,6 +43,29 @@ def loan_with_users_query():
     )
 
 
+def lock_loan_by_id(
+    db: Session,
+    loan_id: int,
+):
+    result = db.execute(
+        select(Loan)
+        .where(Loan.id == loan_id)
+        .with_for_update()
+    )
+
+    return result.scalar_one_or_none()
+
+
+def attach_loan_users(
+    db: Session,
+    loan: Loan,
+):
+    loan.lender = db.get(User, loan.lender_id)
+    loan.borrower = db.get(User, loan.borrower_id)
+
+    return loan
+
+
 def enrich_loan_with_balance(
     db: Session,
     loan: Loan,
@@ -99,21 +122,13 @@ def create_loan(
     )
 
     db.add(loan)
+    db.flush()
+
+    loan.lender = lender
+    loan.borrower = current_user
+    loan.remaining_balance = loan.amount
+
     db.commit()
-    db.refresh(loan)
-
-    result = db.execute(
-        loan_with_users_query().where(
-            Loan.id == loan.id
-        )
-    )
-
-    loan = result.scalar_one()
-
-    loan = enrich_loan_with_balance(
-        db=db,
-        loan=loan,
-    )
 
     notify_loan_created(
         loan=loan,
@@ -224,15 +239,12 @@ def confirm_loan(
         )
 
     loan.status = LoanStatus.ACTIVE
+    loan.remaining_balance = calculate_remaining_balance(
+        db=db,
+        loan=loan,
+    )
 
     db.commit()
-    db.refresh(loan)
-
-    loan = get_loan_by_id(
-        db=db,
-        loan_id=loan.id,
-        current_user=current_user,
-    )
 
     notify_loan_confirmed(
         loan=loan,
@@ -274,15 +286,12 @@ def reject_loan(
         )
 
     loan.status = LoanStatus.REJECTED
+    loan.remaining_balance = calculate_remaining_balance(
+        db=db,
+        loan=loan,
+    )
 
     db.commit()
-    db.refresh(loan)
-
-    loan = get_loan_by_id(
-        db=db,
-        loan_id=loan.id,
-        current_user=current_user,
-    )
 
     notify_loan_rejected(
         loan=loan,
@@ -296,19 +305,21 @@ def mark_loan_as_paid(
     loan_id: int,
     current_user: User,
 ) -> Loan:
-    result = db.execute(
-        select(Loan)
-        .where(Loan.id == loan_id)
-        .with_for_update()
+    loan = lock_loan_by_id(
+        db=db,
+        loan_id=loan_id,
     )
-
-    loan = result.scalar_one_or_none()
 
     if loan is None:
         raise HTTPException(
             status_code=404,
             detail="Loan not found",
         )
+
+    attach_loan_users(
+        db=db,
+        loan=loan,
+    )
 
     if not is_admin(current_user):
         if (
@@ -365,15 +376,9 @@ def mark_loan_as_paid(
             db.add(repayment)
 
     loan.status = LoanStatus.PAID
+    loan.remaining_balance = Decimal("0.00")
 
     db.commit()
-    db.refresh(loan)
-
-    loan = get_loan_by_id(
-        db=db,
-        loan_id=loan.id,
-        current_user=current_user,
-    )
 
     notify_loan_paid(
         loan=loan,
@@ -388,19 +393,21 @@ def create_repayment(
     repayment_data: RepaymentCreate,
     current_user: User,
 ):
-    result = db.execute(
-        select(Loan)
-        .where(Loan.id == loan_id)
-        .with_for_update()
+    loan = lock_loan_by_id(
+        db=db,
+        loan_id=loan_id,
     )
-
-    loan = result.scalar_one_or_none()
 
     if loan is None:
         raise HTTPException(
             status_code=404,
             detail="Loan not found",
         )
+
+    attach_loan_users(
+        db=db,
+        loan=loan,
+    )
 
     if not is_admin(current_user):
         if (
@@ -470,14 +477,9 @@ def create_repayment(
     else:
         loan.status = LoanStatus.PARTIALLY_PAID
 
-    db.commit()
-    db.refresh(loan)
+    loan.remaining_balance = new_remaining_balance
 
-    loan = get_loan_by_id(
-        db=db,
-        loan_id=loan.id,
-        current_user=current_user,
-    )
+    db.commit()
 
     if new_remaining_balance <= 0:
         notify_final_repayment_submitted(
