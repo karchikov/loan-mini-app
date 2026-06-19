@@ -8,6 +8,20 @@ const REPAYMENT_STATUS_LABELS = {
   rejected: "Отклонен",
 };
 
+function getRepaymentActionErrorMessage(error) {
+  const message = error?.message || "";
+
+  if (
+    message.includes("403") ||
+    message.includes("Borrower cannot confirm own repayment") ||
+    message.includes("Borrower cannot reject own repayment")
+  ) {
+    return "Заемщик не может подтвердить или отклонить собственный платеж. Подтверждение должен выполнить кредитор.";
+  }
+
+  return "Не удалось выполнить действие с платежом. Попробуйте еще раз.";
+}
+
 function RepaymentHistory({
   repayments,
   currency = "RUB",
@@ -18,11 +32,7 @@ function RepaymentHistory({
   onRejectRepayment,
 }) {
   const [processingId, setProcessingId] = useState(null);
-
-  const canManageRepayments =
-    loan &&
-    user &&
-    (isAdmin || user.id === loan.lender_id);
+  const [actionError, setActionError] = useState("");
 
   async function handleConfirm(repaymentId) {
     if (!onConfirmRepayment || !loan) {
@@ -30,9 +40,13 @@ function RepaymentHistory({
     }
 
     try {
+      setActionError("");
       setProcessingId(repaymentId);
 
       await onConfirmRepayment(loan.id, repaymentId);
+    } catch (error) {
+      console.error(error);
+      setActionError(getRepaymentActionErrorMessage(error));
     } finally {
       setProcessingId(null);
     }
@@ -44,9 +58,13 @@ function RepaymentHistory({
     }
 
     try {
+      setActionError("");
       setProcessingId(repaymentId);
 
       await onRejectRepayment(loan.id, repaymentId);
+    } catch (error) {
+      console.error(error);
+      setActionError(getRepaymentActionErrorMessage(error));
     } finally {
       setProcessingId(null);
     }
@@ -55,6 +73,12 @@ function RepaymentHistory({
   return (
     <div className="repayment-history">
       <h3>История погашений</h3>
+
+      {actionError && (
+        <p className="error-message">
+          {actionError}
+        </p>
+      )}
 
       {repayments?.length === 0 && (
         <p className="muted">
@@ -71,8 +95,33 @@ function RepaymentHistory({
 
         const isPending = status === "pending";
 
-        const canShowActions =
-          isPending && canManageRepayments;
+        const isCurrentUserBorrower =
+          loan &&
+          user &&
+          user.id === loan.borrower_id;
+
+        const isCurrentUserLender =
+          loan &&
+          user &&
+          user.id === loan.lender_id;
+
+        const wasSubmittedByCurrentUser =
+          user &&
+          repayment.submitted_by_user_id &&
+          user.id === repayment.submitted_by_user_id;
+
+        const canManageRepayment =
+          isPending &&
+          loan &&
+          user &&
+          (isAdmin || isCurrentUserLender) &&
+          !isCurrentUserBorrower &&
+          !wasSubmittedByCurrentUser;
+
+        const shouldShowBorrowerRestriction =
+          isPending &&
+          user &&
+          (isCurrentUserBorrower || wasSubmittedByCurrentUser);
 
         const isProcessing =
           processingId === repayment.id;
@@ -120,7 +169,14 @@ function RepaymentHistory({
               </>
             )}
 
-            {canShowActions && (
+            {shouldShowBorrowerRestriction && (
+              <p className="muted">
+                Заемщик не может подтвердить собственный платеж.
+                Подтверждение должен выполнить кредитор.
+              </p>
+            )}
+
+            {canManageRepayment && (
               <div className="loan-actions-stack">
                 <button
                   className="full-width"
