@@ -14,6 +14,8 @@ function LoansPage({
   onReject,
   onMarkPaid,
   onRepay,
+  onConfirmRepayment,
+  onRejectRepayment,
 }) {
   const filteredLoans = useMemo(() => {
     const sorted = [...loans].sort((a, b) => b.id - a.id);
@@ -70,6 +72,8 @@ function LoansPage({
           onReject={onReject}
           onMarkPaid={onMarkPaid}
           onRepay={onRepay}
+          onConfirmRepayment={onConfirmRepayment}
+          onRejectRepayment={onRejectRepayment}
         />
       ))}
     </div>

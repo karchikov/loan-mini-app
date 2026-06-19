@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.loan import Loan
 from app.models.loan_interest_ledger import LoanInterestLedger
-from app.models.repayment import Repayment
+from app.models.repayment import Repayment, RepaymentStatus
 
 
 @dataclass(frozen=True)
@@ -55,7 +55,8 @@ def calculate_principal_paid(
                 0,
             )
         ).where(
-            Repayment.loan_id == loan.id
+            Repayment.loan_id == loan.id,
+            Repayment.status == RepaymentStatus.CONFIRMED,
         )
     )
 

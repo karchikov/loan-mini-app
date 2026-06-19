@@ -27,6 +27,12 @@ class LoanStatus(str, Enum):
     REJECTED = "rejected"
 
 
+class RepaymentStatus(str, Enum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    REJECTED = "rejected"
+
+
 class LoanBase(BaseModel):
     amount: Decimal = Field(
         gt=0,
@@ -80,6 +86,12 @@ class RepaymentResponse(BaseModel):
     amount: Decimal
     interest_amount: Decimal
     principal_amount: Decimal
+    status: RepaymentStatus
+    submitted_by_user_id: int | None = None
+    confirmed_at: datetime | None = None
+    confirmed_by_user_id: int | None = None
+    rejected_at: datetime | None = None
+    rejected_by_user_id: int | None = None
     created_at: datetime
 
 

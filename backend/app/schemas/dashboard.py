@@ -45,6 +45,8 @@ class DashboardLoanResponse(BaseModel):
     description: str | None
     status: LoanStatus
     remaining_balance: Decimal
+    pending_repayments_count: int = 0
+    pending_repayments_total: Decimal = Decimal("0.00")
 
 
 class DashboardResponse(BaseModel):

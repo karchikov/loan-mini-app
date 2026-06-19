@@ -4,9 +4,11 @@ import { createLoan } from "../api/createLoan";
 
 import {
   confirmLoan,
+  confirmRepayment,
   getRepayments,
   markLoanPaid,
   rejectLoan,
+  rejectRepayment,
   repayLoan,
 } from "../api/loans";
 
@@ -49,6 +51,14 @@ export function useLoans() {
     await repayLoan(id, amount);
   }
 
+  async function confirmPayment(loanId, repaymentId) {
+    await confirmRepayment(loanId, repaymentId);
+  }
+
+  async function rejectPayment(loanId, repaymentId) {
+    await rejectRepayment(loanId, repaymentId);
+  }
+
   function clearLoans() {
     setLoans([]);
     setRepayments({});
@@ -64,6 +74,8 @@ export function useLoans() {
     reject,
     markPaid,
     repay,
+    confirmPayment,
+    rejectPayment,
     clearLoans,
   };
 }

@@ -4,9 +4,11 @@ function RepayForm({ onRepay }) {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   async function handleSubmit() {
     setError("");
+    setSuccess("");
 
     const value = Number(amount);
 
@@ -21,12 +23,15 @@ function RepayForm({ onRepay }) {
       await onRepay(value);
 
       setAmount("");
+      setSuccess(
+        "Платеж отправлен кредитору на подтверждение"
+      );
     } catch (err) {
       console.error(err);
 
       setError(
         err.response?.data?.detail ||
-          "Не удалось создать погашение"
+          "Не удалось отправить платеж"
       );
     } finally {
       setLoading(false);
@@ -37,7 +42,7 @@ function RepayForm({ onRepay }) {
     <div className="repay-box">
       <input
         type="number"
-        placeholder="Сумма погашения"
+        placeholder="Сумма платежа"
         value={amount}
         disabled={loading}
         onChange={(e) => setAmount(e.target.value)}
@@ -45,8 +50,10 @@ function RepayForm({ onRepay }) {
 
       {error && <p className="form-error">{error}</p>}
 
+      {success && <p className="form-success">{success}</p>}
+
       <button onClick={handleSubmit} disabled={loading}>
-        {loading ? "Обработка..." : "Погасить часть"}
+        {loading ? "Обработка..." : "Отправить платеж"}
       </button>
     </div>
   );

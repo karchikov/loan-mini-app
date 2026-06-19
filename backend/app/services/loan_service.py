@@ -2,24 +2,26 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.loan import Loan, LoanStatus
-from app.models.repayment import Repayment
+from app.models.repayment import Repayment, RepaymentStatus
 from app.models.user import User
 from app.schemas.loan import LoanCreate, RepaymentCreate
 from app.services.loan_balance_service import (
     allocate_repayment_interest_first,
     calculate_remaining_balance,
+    normalize_money,
 )
 from app.services.telegram_notifications import (
-    notify_final_repayment_submitted,
     notify_loan_confirmed,
     notify_loan_created,
     notify_loan_paid,
     notify_loan_rejected,
-    notify_partial_payment,
+    notify_repayment_confirmed,
+    notify_repayment_rejected,
+    notify_repayment_submitted,
 )
 
 
@@ -57,6 +59,19 @@ def lock_loan_by_id(
     return result.scalar_one_or_none()
 
 
+def lock_repayment_by_id(
+    db: Session,
+    repayment_id: int,
+):
+    result = db.execute(
+        select(Repayment)
+        .where(Repayment.id == repayment_id)
+        .with_for_update()
+    )
+
+    return result.scalar_one_or_none()
+
+
 def attach_loan_users(
     db: Session,
     loan: Loan,
@@ -77,6 +92,25 @@ def enrich_loan_with_balance(
     )
 
     return loan
+
+
+def calculate_pending_repayments_total(
+    db: Session,
+    loan: Loan,
+) -> Decimal:
+    result = db.execute(
+        select(
+            func.coalesce(
+                func.sum(Repayment.amount),
+                0,
+            )
+        ).where(
+            Repayment.loan_id == loan.id,
+            Repayment.status == RepaymentStatus.PENDING,
+        )
+    )
+
+    return normalize_money(result.scalar_one())
 
 
 def create_loan(
@@ -348,35 +382,44 @@ def mark_loan_as_paid(
             detail="Only active loan can be marked as paid",
         )
 
+    pending_repayments_total = calculate_pending_repayments_total(
+        db=db,
+        loan=loan,
+    )
+
+    if pending_repayments_total > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Loan has pending repayments",
+        )
+
     remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
     )
 
-    if loan.status == LoanStatus.WAITING_CONFIRMATION:
-        if remaining_balance > 0:
-            raise HTTPException(
-                status_code=400,
-                detail="Loan still has remaining balance",
-            )
-    else:
-        if remaining_balance > 0:
-            allocation = allocate_repayment_interest_first(
-                db=db,
-                loan=loan,
-                payment_amount=remaining_balance,
-            )
+    if remaining_balance > 0:
+        allocation = allocate_repayment_interest_first(
+            db=db,
+            loan=loan,
+            payment_amount=remaining_balance,
+        )
 
-            repayment = Repayment(
-                loan_id=loan.id,
-                amount=allocation.total_amount,
-                interest_amount=allocation.interest_amount,
-                principal_amount=allocation.principal_amount,
-            )
+        repayment = Repayment(
+            loan_id=loan.id,
+            amount=allocation.total_amount,
+            interest_amount=allocation.interest_amount,
+            principal_amount=allocation.principal_amount,
+            status=RepaymentStatus.CONFIRMED,
+            submitted_by_user_id=current_user.id,
+            confirmed_at=datetime.now(timezone.utc),
+            confirmed_by_user_id=current_user.id,
+        )
 
-            db.add(repayment)
+        db.add(repayment)
 
     loan.status = LoanStatus.PAID
+    loan.updated_at = datetime.now(timezone.utc)
     loan.remaining_balance = Decimal("0.00")
 
     db.commit()
@@ -435,7 +478,9 @@ def create_repayment(
             detail="Loan is not active",
         )
 
-    if repayment_data.amount <= 0:
+    payment_amount = normalize_money(repayment_data.amount)
+
+    if payment_amount <= 0:
         raise HTTPException(
             status_code=400,
             detail="Repayment amount must be greater than zero",
@@ -446,7 +491,117 @@ def create_repayment(
         loan=loan,
     )
 
-    if repayment_data.amount > remaining_balance:
+    pending_repayments_total = calculate_pending_repayments_total(
+        db=db,
+        loan=loan,
+    )
+
+    available_for_new_repayment = normalize_money(
+        remaining_balance - pending_repayments_total
+    )
+
+    if payment_amount > available_for_new_repayment:
+        raise HTTPException(
+            status_code=400,
+            detail="Repayment amount exceeds available balance",
+        )
+
+    repayment = Repayment(
+        loan_id=loan.id,
+        amount=payment_amount,
+        interest_amount=Decimal("0.00"),
+        principal_amount=Decimal("0.00"),
+        status=RepaymentStatus.PENDING,
+        submitted_by_user_id=current_user.id,
+    )
+
+    db.add(repayment)
+    db.flush()
+
+    loan.updated_at = datetime.now(timezone.utc)
+    loan.remaining_balance = remaining_balance
+
+    db.commit()
+
+    notify_repayment_submitted(
+        loan=loan,
+        repayment_id=repayment.id,
+        payment_amount=payment_amount,
+    )
+
+    return loan
+
+
+def confirm_repayment(
+    db: Session,
+    loan_id: int,
+    repayment_id: int,
+    current_user: User,
+) -> Loan:
+    loan = lock_loan_by_id(
+        db=db,
+        loan_id=loan_id,
+    )
+
+    if loan is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Loan not found",
+        )
+
+    attach_loan_users(
+        db=db,
+        loan=loan,
+    )
+
+    repayment = lock_repayment_by_id(
+        db=db,
+        repayment_id=repayment_id,
+    )
+
+    if repayment is None or repayment.loan_id != loan.id:
+        raise HTTPException(
+            status_code=404,
+            detail="Repayment not found",
+        )
+
+    if (
+        repayment.submitted_by_user_id == current_user.id
+        and loan.borrower_id == current_user.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Borrower cannot confirm own repayment",
+        )
+
+    if not is_admin(current_user):
+        if (
+            loan.lender_id != current_user.id
+            and loan.borrower_id != current_user.id
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail="Loan not found",
+            )
+
+        if loan.lender_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only lender can confirm repayment",
+            )
+
+    if repayment.status != RepaymentStatus.PENDING:
+        raise HTTPException(
+            status_code=400,
+            detail="Only pending repayment can be confirmed",
+        )
+
+    remaining_balance = calculate_remaining_balance(
+        db=db,
+        loan=loan,
+    )
+
+    if repayment.amount > remaining_balance:
         raise HTTPException(
             status_code=400,
             detail="Repayment amount exceeds remaining balance",
@@ -455,17 +610,15 @@ def create_repayment(
     allocation = allocate_repayment_interest_first(
         db=db,
         loan=loan,
-        payment_amount=repayment_data.amount,
+        payment_amount=repayment.amount,
     )
 
-    repayment = Repayment(
-        loan_id=loan.id,
-        amount=allocation.total_amount,
-        interest_amount=allocation.interest_amount,
-        principal_amount=allocation.principal_amount,
-    )
+    repayment.interest_amount = allocation.interest_amount
+    repayment.principal_amount = allocation.principal_amount
+    repayment.status = RepaymentStatus.CONFIRMED
+    repayment.confirmed_at = datetime.now(timezone.utc)
+    repayment.confirmed_by_user_id = current_user.id
 
-    db.add(repayment)
     db.flush()
 
     new_remaining_balance = calculate_remaining_balance(
@@ -474,26 +627,105 @@ def create_repayment(
     )
 
     if new_remaining_balance <= 0:
-        loan.status = LoanStatus.WAITING_CONFIRMATION
+        loan.status = LoanStatus.PAID
+        loan.remaining_balance = Decimal("0.00")
     else:
         loan.status = LoanStatus.PARTIALLY_PAID
+        loan.remaining_balance = new_remaining_balance
 
     loan.updated_at = datetime.now(timezone.utc)
-    loan.remaining_balance = new_remaining_balance
 
     db.commit()
 
-    if new_remaining_balance <= 0:
-        notify_final_repayment_submitted(
-            loan=loan,
-            payment_amount=repayment_data.amount,
+    notify_repayment_confirmed(
+        loan=loan,
+        payment_amount=repayment.amount,
+        remaining_balance=loan.remaining_balance,
+    )
+
+    return loan
+
+
+def reject_repayment(
+    db: Session,
+    loan_id: int,
+    repayment_id: int,
+    current_user: User,
+) -> Loan:
+    loan = lock_loan_by_id(
+        db=db,
+        loan_id=loan_id,
+    )
+
+    if loan is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Loan not found",
         )
-    else:
-        notify_partial_payment(
-            loan=loan,
-            payment_amount=repayment_data.amount,
-            remaining_balance=new_remaining_balance,
+
+    attach_loan_users(
+        db=db,
+        loan=loan,
+    )
+
+    repayment = lock_repayment_by_id(
+        db=db,
+        repayment_id=repayment_id,
+    )
+
+    if repayment is None or repayment.loan_id != loan.id:
+        raise HTTPException(
+            status_code=404,
+            detail="Repayment not found",
         )
+
+    if (
+        repayment.submitted_by_user_id == current_user.id
+        and loan.borrower_id == current_user.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Borrower cannot reject own repayment",
+        )
+
+    if not is_admin(current_user):
+        if (
+            loan.lender_id != current_user.id
+            and loan.borrower_id != current_user.id
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail="Loan not found",
+            )
+
+        if loan.lender_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only lender can reject repayment",
+            )
+
+    if repayment.status != RepaymentStatus.PENDING:
+        raise HTTPException(
+            status_code=400,
+            detail="Only pending repayment can be rejected",
+        )
+
+    repayment.status = RepaymentStatus.REJECTED
+    repayment.rejected_at = datetime.now(timezone.utc)
+    repayment.rejected_by_user_id = current_user.id
+
+    loan.updated_at = datetime.now(timezone.utc)
+    loan.remaining_balance = calculate_remaining_balance(
+        db=db,
+        loan=loan,
+    )
+
+    db.commit()
+
+    notify_repayment_rejected(
+        loan=loan,
+        payment_amount=repayment.amount,
+    )
 
     return loan
 

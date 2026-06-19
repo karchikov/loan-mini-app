@@ -1,9 +1,57 @@
+import { useState } from "react";
+
 import { formatDate, formatMoney } from "../utils/formatters";
+
+const REPAYMENT_STATUS_LABELS = {
+  pending: "Ожидает подтверждения",
+  confirmed: "Подтвержден",
+  rejected: "Отклонен",
+};
 
 function RepaymentHistory({
   repayments,
   currency = "RUB",
+  loan,
+  user,
+  isAdmin,
+  onConfirmRepayment,
+  onRejectRepayment,
 }) {
+  const [processingId, setProcessingId] = useState(null);
+
+  const canManageRepayments =
+    loan &&
+    user &&
+    (isAdmin || user.id === loan.lender_id);
+
+  async function handleConfirm(repaymentId) {
+    if (!onConfirmRepayment || !loan) {
+      return;
+    }
+
+    try {
+      setProcessingId(repaymentId);
+
+      await onConfirmRepayment(loan.id, repaymentId);
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function handleReject(repaymentId) {
+    if (!onRejectRepayment || !loan) {
+      return;
+    }
+
+    try {
+      setProcessingId(repaymentId);
+
+      await onRejectRepayment(loan.id, repaymentId);
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
   return (
     <div className="repayment-history">
       <h3>История погашений</h3>
@@ -14,25 +62,88 @@ function RepaymentHistory({
         </p>
       )}
 
-      {repayments?.map((repayment) => (
-        <div
-          key={repayment.id}
-          className="repayment-item"
-        >
-          <p>
-            <strong>Сумма:</strong>{" "}
-            {formatMoney(
-              repayment.amount,
-              currency,
-            )}
-          </p>
+      {repayments?.map((repayment) => {
+        const status =
+          repayment.status || "confirmed";
 
-          <p>
-            <strong>Дата:</strong>{" "}
-            {formatDate(repayment.created_at)}
-          </p>
-        </div>
-      ))}
+        const statusLabel =
+          REPAYMENT_STATUS_LABELS[status] || status;
+
+        const isPending = status === "pending";
+
+        const canShowActions =
+          isPending && canManageRepayments;
+
+        const isProcessing =
+          processingId === repayment.id;
+
+        return (
+          <div
+            key={repayment.id}
+            className="repayment-item"
+          >
+            <p>
+              <strong>Сумма:</strong>{" "}
+              {formatMoney(
+                repayment.amount,
+                currency,
+              )}
+            </p>
+
+            <p>
+              <strong>Статус:</strong>{" "}
+              {statusLabel}
+            </p>
+
+            <p>
+              <strong>Дата:</strong>{" "}
+              {formatDate(repayment.created_at)}
+            </p>
+
+            {status === "confirmed" && (
+              <>
+                <p>
+                  <strong>В проценты:</strong>{" "}
+                  {formatMoney(
+                    repayment.interest_amount || 0,
+                    currency,
+                  )}
+                </p>
+
+                <p>
+                  <strong>В тело долга:</strong>{" "}
+                  {formatMoney(
+                    repayment.principal_amount || 0,
+                    currency,
+                  )}
+                </p>
+              </>
+            )}
+
+            {canShowActions && (
+              <div className="loan-actions-stack">
+                <button
+                  className="full-width"
+                  disabled={isProcessing}
+                  onClick={() => handleConfirm(repayment.id)}
+                >
+                  {isProcessing
+                    ? "Обработка..."
+                    : "Подтвердить платеж"}
+                </button>
+
+                <button
+                  className="full-width danger-button"
+                  disabled={isProcessing}
+                  onClick={() => handleReject(repayment.id)}
+                >
+                  Отклонить платеж
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

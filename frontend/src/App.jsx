@@ -48,6 +48,8 @@ function App() {
     reject,
     markPaid,
     repay,
+    confirmPayment,
+    rejectPayment,
     clearLoans,
   } = useLoans();
 
@@ -105,6 +107,28 @@ function App() {
     const shouldRefreshRepayments = Boolean(repayments[loanId]);
 
     await repay(loanId, amount);
+    await reloadDashboard();
+
+    if (shouldRefreshRepayments) {
+      await loadRepayments(loanId, true);
+    }
+  }
+
+  async function handleConfirmRepayment(loanId, repaymentId) {
+    const shouldRefreshRepayments = Boolean(repayments[loanId]);
+
+    await confirmPayment(loanId, repaymentId);
+    await reloadDashboard();
+
+    if (shouldRefreshRepayments) {
+      await loadRepayments(loanId, true);
+    }
+  }
+
+  async function handleRejectRepayment(loanId, repaymentId) {
+    const shouldRefreshRepayments = Boolean(repayments[loanId]);
+
+    await rejectPayment(loanId, repaymentId);
     await reloadDashboard();
 
     if (shouldRefreshRepayments) {
@@ -215,6 +239,8 @@ function App() {
                   onReject={handleReject}
                   onMarkPaid={handleMarkPaid}
                   onRepay={handleRepay}
+                  onConfirmRepayment={handleConfirmRepayment}
+                  onRejectRepayment={handleRejectRepayment}
                 />
               </>
             }
@@ -234,6 +260,8 @@ function App() {
                 onReject={handleReject}
                 onMarkPaid={handleMarkPaid}
                 onRepay={handleRepay}
+                onConfirmRepayment={handleConfirmRepayment}
+                onRejectRepayment={handleRejectRepayment}
               />
             }
           />

@@ -110,6 +110,25 @@ def build_mark_paid_keyboard(
     }
 
 
+def build_repayment_confirmation_keyboard(
+    repayment_id: int,
+) -> dict[str, Any]:
+    return {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "Подтвердить платеж",
+                    "callback_data": f"repayment:confirm:{repayment_id}",
+                },
+                {
+                    "text": "Отклонить платеж",
+                    "callback_data": f"repayment:reject:{repayment_id}",
+                },
+            ],
+        ],
+    }
+
+
 def notify_loan_created(
     loan: Loan,
 ) -> None:
@@ -117,7 +136,7 @@ def notify_loan_created(
 
     text = (
         f"Новый запрос займа #{loan.id}\n\n"
-        f"Заёмщик: {borrower_name}\n"
+        f"Заемщик: {borrower_name}\n"
         f"Сумма: {format_money(loan.amount)} {loan.currency}\n\n"
         f"Вы можете подтвердить или отклонить заявку прямо здесь."
     )
@@ -164,6 +183,80 @@ def notify_loan_rejected(
     )
 
 
+def notify_repayment_submitted(
+    loan: Loan,
+    repayment_id: int,
+    payment_amount: Decimal,
+) -> None:
+    borrower_name = get_user_name(loan.borrower)
+
+    lender_text = (
+        f"Заемщик отправил платеж по займу #{loan.id}\n\n"
+        f"Заемщик: {borrower_name}\n"
+        f"Платеж: {format_money(payment_amount)} {loan.currency}\n\n"
+        f"Остаток займа пока не уменьшен. Подтвердите платеж, если деньги получены."
+    )
+
+    borrower_text = (
+        f"Платеж по займу #{loan.id} отправлен на подтверждение.\n\n"
+        f"Платеж: {format_money(payment_amount)} {loan.currency}\n"
+        f"Остаток займа уменьшится только после подтверждения кредитором."
+    )
+
+    send_telegram_message(
+        telegram_id=loan.lender.telegram_id,
+        text=lender_text,
+        reply_markup=build_repayment_confirmation_keyboard(
+            repayment_id=repayment_id,
+        ),
+    )
+
+    if loan.borrower.telegram_id != loan.lender.telegram_id:
+        send_telegram_message(
+            telegram_id=loan.borrower.telegram_id,
+            text=borrower_text,
+        )
+
+
+def notify_repayment_confirmed(
+    loan: Loan,
+    payment_amount: Decimal,
+    remaining_balance: Decimal,
+) -> None:
+    text = (
+        f"Платеж по займу #{loan.id} подтвержден.\n\n"
+        f"Платеж: {format_money(payment_amount)} {loan.currency}\n"
+        f"Остаток: {format_money(remaining_balance)} {loan.currency}"
+    )
+
+    send_telegram_message(
+        telegram_id=loan.lender.telegram_id,
+        text=text,
+    )
+
+    if loan.borrower.telegram_id != loan.lender.telegram_id:
+        send_telegram_message(
+            telegram_id=loan.borrower.telegram_id,
+            text=text,
+        )
+
+
+def notify_repayment_rejected(
+    loan: Loan,
+    payment_amount: Decimal,
+) -> None:
+    text = (
+        f"Платеж по займу #{loan.id} отклонен.\n\n"
+        f"Платеж: {format_money(payment_amount)} {loan.currency}\n"
+        f"Остаток займа не изменился."
+    )
+
+    send_telegram_message(
+        telegram_id=loan.borrower.telegram_id,
+        text=text,
+    )
+
+
 def notify_partial_payment(
     loan: Loan,
     payment_amount: Decimal,
@@ -172,9 +265,9 @@ def notify_partial_payment(
     borrower_name = get_user_name(loan.borrower)
 
     text = (
-        f"Поступил частичный платёж по займу #{loan.id}\n\n"
-        f"Заёмщик: {borrower_name}\n"
-        f"Платёж: {format_money(payment_amount)} {loan.currency}\n"
+        f"Поступил частичный платеж по займу #{loan.id}\n\n"
+        f"Заемщик: {borrower_name}\n"
+        f"Платеж: {format_money(payment_amount)} {loan.currency}\n"
         f"Остаток: {format_money(remaining_balance)} {loan.currency}"
     )
 
@@ -197,15 +290,15 @@ def notify_final_repayment_submitted(
     borrower_name = get_user_name(loan.borrower)
 
     lender_text = (
-        f"Заёмщик сообщил о полном погашении займа #{loan.id}\n\n"
-        f"Заёмщик: {borrower_name}\n"
-        f"Последний платёж: {format_money(payment_amount)} {loan.currency}\n\n"
+        f"Заемщик сообщил о полном погашении займа #{loan.id}\n\n"
+        f"Заемщик: {borrower_name}\n"
+        f"Последний платеж: {format_money(payment_amount)} {loan.currency}\n\n"
         f"Подтвердите закрытие займа, если деньги получены."
     )
 
     borrower_text = (
-        f"Последний платёж по займу #{loan.id} отправлен.\n\n"
-        f"Платёж: {format_money(payment_amount)} {loan.currency}\n"
+        f"Последний платеж по займу #{loan.id} отправлен.\n\n"
+        f"Платеж: {format_money(payment_amount)} {loan.currency}\n"
         f"Займ ожидает подтверждения закрытия кредитором."
     )
 

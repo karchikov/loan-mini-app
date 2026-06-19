@@ -12,6 +12,7 @@ from app.schemas.loan import (
 )
 from app.services.loan_service import (
     confirm_loan,
+    confirm_repayment,
     create_loan,
     create_repayment,
     get_loan_by_id,
@@ -19,6 +20,7 @@ from app.services.loan_service import (
     get_user_loans,
     mark_loan_as_paid,
     reject_loan,
+    reject_repayment,
 )
 
 router = APIRouter(
@@ -143,6 +145,42 @@ def repay_loan(
         db=db,
         loan_id=loan_id,
         repayment_data=repayment_data,
+        current_user=current_user,
+    )
+
+
+@router.post(
+    "/{loan_id}/repayments/{repayment_id}/confirm",
+    response_model=LoanResponse,
+)
+def confirm_existing_repayment(
+    loan_id: int,
+    repayment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return confirm_repayment(
+        db=db,
+        loan_id=loan_id,
+        repayment_id=repayment_id,
+        current_user=current_user,
+    )
+
+
+@router.post(
+    "/{loan_id}/repayments/{repayment_id}/reject",
+    response_model=LoanResponse,
+)
+def reject_existing_repayment(
+    loan_id: int,
+    repayment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return reject_repayment(
+        db=db,
+        loan_id=loan_id,
+        repayment_id=repayment_id,
         current_user=current_user,
     )
 

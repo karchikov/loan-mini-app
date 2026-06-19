@@ -9,11 +9,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.models.repayment import Repayment
 from app.models.user import User
 from app.services.loan_service import (
     confirm_loan,
+    confirm_repayment,
     mark_loan_as_paid,
     reject_loan,
+    reject_repayment,
 )
 
 logger = logging.getLogger(__name__)
@@ -109,22 +112,114 @@ def get_user_by_telegram_id(
     return result.scalar_one_or_none()
 
 
+def get_repayment_by_id(
+    db: Session,
+    repayment_id: int,
+) -> Repayment | None:
+    result = db.execute(
+        select(Repayment).where(
+            Repayment.id == repayment_id
+        )
+    )
+
+    return result.scalar_one_or_none()
+
+
 def parse_callback_data(
     callback_data: str,
-) -> tuple[str, int]:
+) -> tuple[str, str, int]:
     parts = callback_data.split(":")
 
     if len(parts) != 3:
         raise ValueError("Invalid callback data format")
 
-    entity, action, raw_loan_id = parts
+    entity, action, raw_object_id = parts
 
-    if entity != "loan":
+    if entity not in [
+        "loan",
+        "repayment",
+    ]:
         raise ValueError("Unsupported callback entity")
 
-    loan_id = int(raw_loan_id)
+    object_id = int(raw_object_id)
 
-    return action, loan_id
+    return entity, action, object_id
+
+
+def handle_loan_callback(
+    db: Session,
+    action: str,
+    loan_id: int,
+    user: User,
+) -> str:
+    if action == "confirm":
+        confirm_loan(
+            db=db,
+            loan_id=loan_id,
+            current_user=user,
+        )
+
+        return "Займ подтвержден."
+
+    if action == "reject":
+        reject_loan(
+            db=db,
+            loan_id=loan_id,
+            current_user=user,
+        )
+
+        return "Заявка отклонена."
+
+    if action == "mark_paid":
+        mark_loan_as_paid(
+            db=db,
+            loan_id=loan_id,
+            current_user=user,
+        )
+
+        return "Закрытие займа подтверждено."
+
+    raise ValueError("Unsupported loan callback action")
+
+
+def handle_repayment_callback(
+    db: Session,
+    action: str,
+    repayment_id: int,
+    user: User,
+) -> str:
+    repayment = get_repayment_by_id(
+        db=db,
+        repayment_id=repayment_id,
+    )
+
+    if repayment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Repayment not found",
+        )
+
+    if action == "confirm":
+        confirm_repayment(
+            db=db,
+            loan_id=repayment.loan_id,
+            repayment_id=repayment.id,
+            current_user=user,
+        )
+
+        return "Платеж подтвержден."
+
+    if action == "reject":
+        reject_repayment(
+            db=db,
+            loan_id=repayment.loan_id,
+            repayment_id=repayment.id,
+            current_user=user,
+        )
+
+        return "Платеж отклонен."
+
+    raise ValueError("Unsupported repayment callback action")
 
 
 def handle_telegram_callback(
@@ -181,39 +276,26 @@ def handle_telegram_callback(
         }
 
     try:
-        action, loan_id = parse_callback_data(
+        entity, action, object_id = parse_callback_data(
             callback_data=callback_data,
         )
 
-        if action == "confirm":
-            confirm_loan(
+        if entity == "loan":
+            answer_text = handle_loan_callback(
                 db=db,
-                loan_id=loan_id,
-                current_user=user,
+                action=action,
+                loan_id=object_id,
+                user=user,
             )
-
-            answer_text = "Займ подтверждён."
-
-        elif action == "reject":
-            reject_loan(
+        elif entity == "repayment":
+            answer_text = handle_repayment_callback(
                 db=db,
-                loan_id=loan_id,
-                current_user=user,
+                action=action,
+                repayment_id=object_id,
+                user=user,
             )
-
-            answer_text = "Заявка отклонена."
-
-        elif action == "mark_paid":
-            mark_loan_as_paid(
-                db=db,
-                loan_id=loan_id,
-                current_user=user,
-            )
-
-            answer_text = "Закрытие займа подтверждено."
-
         else:
-            raise ValueError("Unsupported callback action")
+            raise ValueError("Unsupported callback entity")
 
         if chat_id is not None and message_id is not None:
             edit_message_reply_markup(

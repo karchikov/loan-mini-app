@@ -32,6 +32,22 @@ export async function repayLoan(loanId, amount) {
   return response.data;
 }
 
+export async function confirmRepayment(loanId, repaymentId) {
+  const response = await client.post(
+    `/loans/${loanId}/repayments/${repaymentId}/confirm`
+  );
+
+  return response.data;
+}
+
+export async function rejectRepayment(loanId, repaymentId) {
+  const response = await client.post(
+    `/loans/${loanId}/repayments/${repaymentId}/reject`
+  );
+
+  return response.data;
+}
+
 export async function getRepayments(loanId) {
   const response = await client.get(`/loans/${loanId}/repayments`);
 

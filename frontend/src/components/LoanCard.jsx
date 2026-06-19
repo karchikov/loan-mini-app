@@ -12,9 +12,9 @@ const LOAN_STATUS_LABELS = {
   partially_paid: "Частично погашен",
   paid: "Погашен",
   overdue: "Просрочен",
-  cancelled: "Отменён",
+  cancelled: "Отменен",
   disputed: "Спорный",
-  rejected: "Отклонён",
+  rejected: "Отклонен",
 };
 
 function formatUser(userData, fallbackId) {
@@ -22,7 +22,9 @@ function formatUser(userData, fallbackId) {
     return `Пользователь #${fallbackId}`;
   }
 
-  const name = userData.first_name || `Пользователь #${fallbackId}`;
+  const name =
+    userData.first_name || `Пользователь #${fallbackId}`;
+
   const username = userData.username;
 
   if (username) {
@@ -55,6 +57,8 @@ function LoanCard({
   onReject,
   onMarkPaid,
   onRepay,
+  onConfirmRepayment,
+  onRejectRepayment,
 }) {
   const [historyVisible, setHistoryVisible] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -72,6 +76,12 @@ function LoanCard({
     loan.lender_id,
   );
 
+  const pendingRepaymentsCount =
+    Number(loan.pending_repayments_count || 0);
+
+  const hasPendingRepayments =
+    pendingRepaymentsCount > 0;
+
   const canConfirmOrReject =
     loan.status === "draft" &&
     (isAdmin || isLender);
@@ -85,7 +95,8 @@ function LoanCard({
     (loan.status === "active" ||
       loan.status === "partially_paid" ||
       loan.status === "waiting_confirmation") &&
-    (isAdmin || isLender);
+    (isAdmin || isLender) &&
+    !hasPendingRepayments;
 
   const statusLabel =
     LOAN_STATUS_LABELS[loan.status] || loan.status;
@@ -142,9 +153,29 @@ function LoanCard({
         </strong>
       </div>
 
+      {hasPendingRepayments && (
+        <div className="loan-balance-box">
+          <span>
+            Ожидает подтверждения
+          </span>
+
+          <strong>
+            {formatMoney(
+              loan.pending_repayments_total || 0,
+              currency,
+            )}
+          </strong>
+
+          <p className="muted">
+            Платежей на подтверждении:{" "}
+            {pendingRepaymentsCount}
+          </p>
+        </div>
+      )}
+
       <div className="loan-body">
         <p>
-          <strong>Заёмщик:</strong> {borrowerName}
+          <strong>Заемщик:</strong> {borrowerName}
         </p>
 
         <p>
@@ -198,6 +229,12 @@ function LoanCard({
           </button>
         )}
 
+        {hasPendingRepayments && (isAdmin || isLender) && (
+          <p className="muted">
+            Есть платежи на подтверждении. Откройте историю погашений.
+          </p>
+        )}
+
         <button
           className="full-width secondary-button"
           onClick={handleToggleHistory}
@@ -216,6 +253,11 @@ function LoanCard({
         <RepaymentHistory
           repayments={repayments || []}
           currency={currency}
+          loan={loan}
+          user={user}
+          isAdmin={isAdmin}
+          onConfirmRepayment={onConfirmRepayment}
+          onRejectRepayment={onRejectRepayment}
         />
       )}
     </div>

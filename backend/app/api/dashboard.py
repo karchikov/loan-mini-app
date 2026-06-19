@@ -8,7 +8,7 @@ from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.loan import Loan, LoanStatus
 from app.models.loan_interest_ledger import LoanInterestLedger
-from app.models.repayment import Repayment
+from app.models.repayment import Repayment, RepaymentStatus
 from app.models.user import User
 from app.schemas.dashboard import DashboardResponse
 from app.schemas.user import UserHistoryItemResponse, UserSummaryResponse
@@ -52,7 +52,7 @@ def format_user_name(user: User | None) -> str:
     if user is None:
         return "Пользователь"
 
-    name = user.first_name or f"User #{user.id}"
+    name = user.first_name or f"Пользователь #{user.id}"
 
     if user.username:
         return f"{name} (@{user.username})"
@@ -104,6 +104,25 @@ def get_dashboard_loans(
                 0,
             ).label("principal_paid"),
         )
+        .where(
+            Repayment.status == RepaymentStatus.CONFIRMED,
+        )
+        .group_by(Repayment.loan_id)
+        .subquery()
+    )
+
+    pending_repayment_totals = (
+        select(
+            Repayment.loan_id.label("loan_id"),
+            func.count(Repayment.id).label("pending_repayments_count"),
+            func.coalesce(
+                func.sum(Repayment.amount),
+                0,
+            ).label("pending_repayments_total"),
+        )
+        .where(
+            Repayment.status == RepaymentStatus.PENDING,
+        )
         .group_by(Repayment.loan_id)
         .subquery()
     )
@@ -134,6 +153,14 @@ def get_dashboard_loans(
                 interest_totals.c.unpaid_interest,
                 0,
             ).label("unpaid_interest"),
+            func.coalesce(
+                pending_repayment_totals.c.pending_repayments_count,
+                0,
+            ).label("pending_repayments_count"),
+            func.coalesce(
+                pending_repayment_totals.c.pending_repayments_total,
+                0,
+            ).label("pending_repayments_total"),
         )
         .outerjoin(
             repayment_totals,
@@ -142,6 +169,10 @@ def get_dashboard_loans(
         .outerjoin(
             interest_totals,
             interest_totals.c.loan_id == Loan.id,
+        )
+        .outerjoin(
+            pending_repayment_totals,
+            pending_repayment_totals.c.loan_id == Loan.id,
         )
         .options(
             load_only(
@@ -179,11 +210,25 @@ def get_dashboard_loans(
 
     loans = []
 
-    for loan, principal_paid, unpaid_interest in result.all():
+    for (
+        loan,
+        principal_paid,
+        unpaid_interest,
+        pending_repayments_count,
+        pending_repayments_total,
+    ) in result.all():
         loan.remaining_balance = calculate_remaining_balance_from_values(
             loan_amount=loan.amount,
             principal_paid=principal_paid,
             unpaid_interest=unpaid_interest,
+        )
+
+        loan.pending_repayments_count = int(
+            pending_repayments_count or 0
+        )
+
+        loan.pending_repayments_total = normalize_money(
+            pending_repayments_total
         )
 
         loans.append(loan)
@@ -338,9 +383,9 @@ def build_dashboard_history(
                 UserHistoryItemResponse(
                     id=f"loan-{loan.id}-rejected",
                     type="loan_rejected",
-                    title="Займ отклонён",
+                    title="Займ отклонен",
                     description=(
-                        f"Займ #{loan.id} был отклонён"
+                        f"Займ #{loan.id} был отклонен"
                     ),
                     amount=loan.amount,
                     created_at=loan.updated_at,
@@ -348,13 +393,20 @@ def build_dashboard_history(
             )
 
     for repayment in repayments:
+        if repayment.status == RepaymentStatus.PENDING:
+            title = "Платеж ожидает подтверждения"
+        elif repayment.status == RepaymentStatus.REJECTED:
+            title = "Платеж отклонен"
+        else:
+            title = "Платеж по займу"
+
         history.append(
             UserHistoryItemResponse(
                 id=f"repayment-{repayment.id}",
                 type="repayment",
-                title="Платёж по займу",
+                title=title,
                 description=(
-                    f"Платёж по займу #{repayment.loan_id}"
+                    f"Платеж по займу #{repayment.loan_id}"
                 ),
                 amount=repayment.amount,
                 created_at=repayment.created_at,
