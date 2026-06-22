@@ -411,6 +411,71 @@ body {
   color: var(--text);
 }
 
+.loan-info-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.loan-info-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.loan-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.loan-info-row:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.loan-info-row:last-child {
+  padding-bottom: 0;
+}
+
+.loan-info-label {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.loan-info-value {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.loan-overdue-row .loan-info-label {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.loan-overdue-value {
+  color: var(--danger);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.loan-overdue-text {
+  margin: 6px 0 0;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .loan-body {
   margin-top: 16px;
 }

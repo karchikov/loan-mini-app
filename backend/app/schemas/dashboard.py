@@ -57,6 +57,9 @@ class DashboardLoanResponse(BaseModel):
     description: str | None
     status: LoanStatus
 
+    created_at: datetime
+    due_date: date | datetime | None = None
+
     principal_remaining: Decimal = Decimal("0.00")
     unpaid_interest: Decimal = Decimal("0.00")
     remaining_balance: Decimal

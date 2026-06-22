@@ -17,6 +17,12 @@ const LOAN_STATUS_LABELS = {
   rejected: "Отклонен",
 };
 
+const CLOSED_LOAN_STATUSES = [
+  "paid",
+  "cancelled",
+  "rejected",
+];
+
 function formatUser(userData, fallbackId) {
   if (!userData) {
     return `Пользователь #${fallbackId}`;
@@ -47,13 +53,14 @@ function formatAnnualInterestRate(value) {
   })}%`;
 }
 
-function formatDateOnly(value) {
+function formatDateValue(value, emptyLabel = "Не указано") {
   if (!value) {
-    return "начислений пока нет";
+    return emptyLabel;
   }
 
   if (typeof value === "string" && value.includes("-")) {
-    const [year, month, day] = value.split("-");
+    const datePart = value.split("T")[0];
+    const [year, month, day] = datePart.split("-");
 
     if (year && month && day) {
       return `${day}.${month}.${year}`;
@@ -61,6 +68,70 @@ function formatDateOnly(value) {
   }
 
   return formatDate(value);
+}
+
+function parseDateOnly(value) {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+
+  const datePart = value.split("T")[0];
+  const parts = datePart.split("-");
+
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const [year, month, day] = parts.map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+function getTodayDateOnly() {
+  const today = new Date();
+
+  today.setHours(0, 0, 0, 0);
+
+  return today;
+}
+
+function getOverdueDays(dueDate) {
+  if (!dueDate) {
+    return 0;
+  }
+
+  const today = getTodayDateOnly();
+  const diffMs = today.getTime() - dueDate.getTime();
+
+  if (diffMs <= 0) {
+    return 0;
+  }
+
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
+function formatDaysWord(days) {
+  const absDays = Math.abs(days);
+  const lastDigit = absDays % 10;
+  const lastTwoDigits = absDays % 100;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return "дней";
+  }
+
+  if (lastDigit === 1) {
+    return "день";
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return "дня";
+  }
+
+  return "дней";
 }
 
 function LoanCard({
@@ -134,6 +205,16 @@ function LoanCard({
 
   const unpaidInterest =
     loan.unpaid_interest ?? 0;
+
+  const dueDate = parseDateOnly(loan.due_date);
+  const overdueDays = getOverdueDays(dueDate);
+
+  const isClosedLoan =
+    CLOSED_LOAN_STATUSES.includes(loan.status);
+
+  const isOverdue =
+    overdueDays > 0 &&
+    !isClosedLoan;
 
   const markPaidButtonText =
     loan.status === "waiting_confirmation"
@@ -250,38 +331,115 @@ function LoanCard({
         {formatMoney(loan.amount, currency)}
       </div>
 
-      <div className="loan-balance-box">
-        <span>Остаток к погашению</span>
-        <strong>
-          {formatMoney(loan.remaining_balance, currency)}
-        </strong>
+      <div className="loan-info-panel">
+        <h3 className="loan-info-title">
+          Детали займа
+        </h3>
 
-        <p className="muted">
-          Сумма включает тело долга и начисленные проценты.
-        </p>
-      </div>
+        <div className="loan-info-row">
+          <span className="loan-info-label">
+            Сумма займа
+          </span>
 
-      <div className="loan-balance-box">
-        <span>Тело долга</span>
-        <strong>
-          {formatMoney(principalRemaining, currency)}
-        </strong>
+          <strong className="loan-info-value">
+            {formatMoney(loan.amount, currency)}
+          </strong>
+        </div>
 
-        <p className="muted">
-          Остаток основного долга после подтвержденных платежей.
-        </p>
-      </div>
+        <div className="loan-info-row">
+          <span className="loan-info-label">
+            Тело долга
+          </span>
 
-      <div className="loan-balance-box">
-        <span>Начисленные проценты</span>
-        <strong>
-          {formatMoney(unpaidInterest, currency)}
-        </strong>
+          <strong className="loan-info-value">
+            {formatMoney(principalRemaining, currency)}
+          </strong>
+        </div>
 
-        <p className="muted">
-          Последнее начисление:{" "}
-          {formatDateOnly(loan.last_interest_accrual_date)}
-        </p>
+        <div className="loan-info-row">
+          <span className="loan-info-label">
+            Начисленные проценты
+          </span>
+
+          <strong className="loan-info-value">
+            {formatMoney(unpaidInterest, currency)}
+          </strong>
+        </div>
+
+        <div className="loan-info-row">
+          <span className="loan-info-label">
+            Остаток к погашению
+          </span>
+
+          <strong className="loan-info-value">
+            {formatMoney(loan.remaining_balance, currency)}
+          </strong>
+        </div>
+
+        <div className="loan-info-row">
+          <span className="loan-info-label">
+            Ставка
+          </span>
+
+          <strong className="loan-info-value">
+            {formatAnnualInterestRate(loan.annual_interest_rate)} годовых
+          </strong>
+        </div>
+
+        <div className="loan-info-row">
+          <span className="loan-info-label">
+            Дата выдачи
+          </span>
+
+          <strong className="loan-info-value">
+            {formatDateValue(loan.created_at)}
+          </strong>
+        </div>
+
+        <div
+          className={
+            isOverdue
+              ? "loan-info-row loan-overdue-row"
+              : "loan-info-row"
+          }
+        >
+          <span className="loan-info-label">
+            Срок возврата
+          </span>
+
+          <div className="loan-info-value">
+            <strong
+              className={
+                isOverdue
+                  ? "loan-overdue-value"
+                  : ""
+              }
+            >
+              {formatDateValue(loan.due_date)}
+            </strong>
+
+            {isOverdue && (
+              <p className="loan-overdue-text">
+                Займ просрочен
+                <br />
+                Просрочен на {overdueDays} {formatDaysWord(overdueDays)}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="loan-info-row">
+          <span className="loan-info-label">
+            Последнее начисление процентов
+          </span>
+
+          <strong className="loan-info-value">
+            {formatDateValue(
+              loan.last_interest_accrual_date,
+              "начислений пока нет",
+            )}
+          </strong>
+        </div>
       </div>
 
       {hasPendingRepayments && (
@@ -387,11 +545,6 @@ function LoanCard({
 
         <p>
           <strong>Валюта:</strong> {currency}
-        </p>
-
-        <p>
-          <strong>Ставка:</strong>{" "}
-          {formatAnnualInterestRate(loan.annual_interest_rate)} годовых
         </p>
 
         <p>

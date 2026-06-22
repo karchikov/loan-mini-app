@@ -222,6 +222,7 @@ def get_dashboard_loans(
                 Loan.status,
                 Loan.created_at,
                 Loan.updated_at,
+                Loan.due_date,
             ),
             joinedload(Loan.lender).load_only(
                 User.id,
