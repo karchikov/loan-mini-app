@@ -29,14 +29,55 @@ def is_admin(user: User) -> bool:
     return user.role == "admin"
 
 
+def get_connected_user_ids(
+    users: list[User],
+    current_user_id: int,
+) -> set[int]:
+    graph: dict[int, set[int]] = {}
+
+    for user in users:
+        graph.setdefault(user.id, set())
+
+        if user.invited_by_user_id is not None:
+            graph.setdefault(user.invited_by_user_id, set())
+            graph[user.id].add(user.invited_by_user_id)
+            graph[user.invited_by_user_id].add(user.id)
+
+    visited = set()
+    queue = [current_user_id]
+
+    while queue:
+        user_id = queue.pop(0)
+
+        if user_id in visited:
+            continue
+
+        visited.add(user_id)
+
+        for connected_user_id in graph.get(user_id, set()):
+            if connected_user_id not in visited:
+                queue.append(connected_user_id)
+
+    return visited
+
+
 def is_user_in_telegram_network(
+    db: Session,
     current_user: User,
     user: User,
 ) -> bool:
-    return (
-        user.invited_by_user_id == current_user.id
-        or current_user.invited_by_user_id == user.id
+    result = db.execute(
+        select(User)
     )
+
+    users = result.scalars().all()
+
+    connected_user_ids = get_connected_user_ids(
+        users=users,
+        current_user_id=current_user.id,
+    )
+
+    return user.id in connected_user_ids
 
 
 def loan_with_users_query():
@@ -136,9 +177,13 @@ def create_loan(
             detail="Lender not found",
         )
 
-    if not is_user_in_telegram_network(
-        current_user=current_user,
-        user=lender,
+    if (
+        not is_admin(current_user)
+        and not is_user_in_telegram_network(
+            db=db,
+            current_user=current_user,
+            user=lender,
+        )
     ):
         raise HTTPException(
             status_code=403,
