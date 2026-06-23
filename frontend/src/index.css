@@ -307,6 +307,14 @@ body {
     var(--shadow-soft);
 }
 
+.loan-card-expired {
+  background: rgba(107, 114, 128, 0.05);
+  border: 2px solid rgba(107, 114, 128, 0.38);
+  box-shadow:
+    0 0 0 1px rgba(107, 114, 128, 0.08),
+    var(--shadow-soft);
+}
+
 .loan-header {
   display: flex;
   justify-content: space-between;
@@ -314,20 +322,30 @@ body {
   gap: 12px;
 }
 
-.loan-overdue-badge {
+.loan-overdue-badge,
+.loan-expired-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(220, 38, 38, 0.32);
-  background: rgba(220, 38, 38, 0.10);
-  color: var(--danger);
   font-size: 12px;
   font-weight: 800;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+.loan-overdue-badge {
+  border: 1px solid rgba(220, 38, 38, 0.32);
+  background: rgba(220, 38, 38, 0.10);
+  color: var(--danger);
+}
+
+.loan-expired-badge {
+  border: 1px solid rgba(107, 114, 128, 0.32);
+  background: rgba(107, 114, 128, 0.12);
+  color: #4b5563;
 }
 
 .loan-id {
@@ -386,7 +404,8 @@ body {
   border: 1px solid rgba(220, 38, 38, 0.24);
 }
 
-.loan-status.cancelled {
+.loan-status.cancelled,
+.loan-status.expired {
   color: #374151;
   background: rgba(107, 114, 128, 0.12);
   border: 1px solid rgba(107, 114, 128, 0.24);
@@ -485,6 +504,11 @@ body {
   font-weight: 700;
 }
 
+.loan-expired-row .loan-info-label {
+  color: #4b5563;
+  font-weight: 700;
+}
+
 .loan-overdue-value {
   color: var(--danger);
   font-size: 15px;
@@ -494,6 +518,14 @@ body {
 .loan-overdue-text {
   margin: 6px 0 0;
   color: var(--danger);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.loan-expired-text {
+  margin: 6px 0 0;
+  color: #4b5563;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.35;
@@ -806,7 +838,8 @@ input::placeholder {
     align-items: flex-start;
   }
 
-  .loan-overdue-badge {
+  .loan-overdue-badge,
+  .loan-expired-badge {
     width: fit-content;
   }
 

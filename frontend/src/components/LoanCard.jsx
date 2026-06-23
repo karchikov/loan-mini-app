@@ -17,12 +17,21 @@ const LOAN_STATUS_LABELS = {
   cancelled: "Отменен",
   disputed: "Спорный",
   rejected: "Отклонен",
+  expired: "Срок заявки истек",
 };
 
 const CLOSED_LOAN_STATUSES = [
   "paid",
   "cancelled",
   "rejected",
+  "expired",
+];
+
+const ISSUED_LOAN_STATUSES = [
+  "active",
+  "partially_paid",
+  "waiting_confirmation",
+  "overdue",
 ];
 
 function formatUser(userData, fallbackId) {
@@ -186,8 +195,35 @@ function LoanCard({
   const hasPendingRepayments =
     pendingRepaymentsCount > 0;
 
+  const dueDate = parseDateOnly(loan.due_date);
+  const overdueDays = getOverdueDays(dueDate);
+
+  const isDraftExpiredLocally =
+    loan.status === "draft" &&
+    overdueDays > 0;
+
+  const isExpiredLoan =
+    loan.status === "expired" ||
+    isDraftExpiredLocally;
+
+  const isClosedLoan =
+    CLOSED_LOAN_STATUSES.includes(loan.status) ||
+    isExpiredLoan;
+
+  const isIssuedLoan =
+    ISSUED_LOAN_STATUSES.includes(loan.status);
+
+  const isOverdue =
+    overdueDays > 0 &&
+    isIssuedLoan &&
+    !isClosedLoan;
+
+  const displayStatus =
+    isExpiredLoan ? "expired" : loan.status;
+
   const canConfirmOrReject =
     loan.status === "draft" &&
+    !isDraftExpiredLocally &&
     (isAdmin || isLender);
 
   const canRepay =
@@ -203,7 +239,7 @@ function LoanCard({
     !hasPendingRepayments;
 
   const statusLabel =
-    LOAN_STATUS_LABELS[loan.status] || loan.status;
+    LOAN_STATUS_LABELS[displayStatus] || displayStatus;
 
   const currency = loan.currency || "RUB";
 
@@ -212,16 +248,6 @@ function LoanCard({
 
   const unpaidInterest =
     loan.unpaid_interest ?? 0;
-
-  const dueDate = parseDateOnly(loan.due_date);
-  const overdueDays = getOverdueDays(dueDate);
-
-  const isClosedLoan =
-    CLOSED_LOAN_STATUSES.includes(loan.status);
-
-  const isOverdue =
-    overdueDays > 0 &&
-    !isClosedLoan;
 
   const markPaidButtonText =
     loan.status === "waiting_confirmation"
@@ -376,16 +402,18 @@ function LoanCard({
   return (
     <div
       className={
-        isOverdue
-          ? "card loan-card loan-card-overdue"
-          : "card loan-card"
+        isExpiredLoan
+          ? "card loan-card loan-card-expired"
+          : isOverdue
+            ? "card loan-card loan-card-overdue"
+            : "card loan-card"
       }
     >
       <div className="loan-header">
         <div>
           <p className="loan-id">Займ №{loan.id}</p>
 
-          <p className={`loan-status ${loan.status}`}>
+          <p className={`loan-status ${displayStatus}`}>
             {statusLabel}
           </p>
         </div>
@@ -393,6 +421,12 @@ function LoanCard({
         {isOverdue && (
           <div className="loan-overdue-badge">
             Займ просрочен
+          </div>
+        )}
+
+        {isExpiredLoan && (
+          <div className="loan-expired-badge">
+            Срок заявки истек
           </div>
         )}
       </div>
@@ -470,7 +504,9 @@ function LoanCard({
           className={
             isOverdue
               ? "loan-info-row loan-overdue-row"
-              : "loan-info-row"
+              : isExpiredLoan
+                ? "loan-info-row loan-expired-row"
+                : "loan-info-row"
           }
         >
           <span className="loan-info-label">
@@ -493,6 +529,12 @@ function LoanCard({
                 Займ просрочен
                 <br />
                 Просрочен на {overdueDays} {formatDaysWord(overdueDays)}
+              </p>
+            )}
+
+            {isExpiredLoan && (
+              <p className="loan-expired-text">
+                Заявка не была подтверждена кредитором до срока возврата
               </p>
             )}
           </div>

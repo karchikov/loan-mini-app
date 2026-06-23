@@ -208,6 +208,13 @@ function CreateLoanForm({
       return;
     }
 
+    if (!dueDate) {
+      setError(
+        "Укажите срок возврата займа",
+      );
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -217,7 +224,7 @@ function CreateLoanForm({
         annual_interest_rate: annualInterestRateValue,
         currency,
         description: description.trim() || null,
-        due_date: dueDate ? `${dueDate}T00:00:00` : null,
+        due_date: `${dueDate}T00:00:00`,
       };
 
       await onCreate(payload);
@@ -249,7 +256,7 @@ function CreateLoanForm({
         </h2>
 
         <p>
-          Выберите кредитора из вашей Telegram-сети, укажите сумму, валюту и описание заявки.
+          Выберите кредитора из вашей Telegram-сети, укажите сумму, валюту, срок возврата и описание заявки.
         </p>
       </div>
 
@@ -318,7 +325,7 @@ function CreateLoanForm({
                   disabled={loading || inviteLoading}
                 >
                   {inviteLoading
-                    ? "Создаём ссылку..."
+                    ? "Создаем ссылку..."
                     : "👤 Пригласить нового кредитора"}
                 </button>
 
@@ -405,6 +412,7 @@ function CreateLoanForm({
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
             disabled={loading || inviteLoading || !hasAvailableLenders}
+            required
           />
         </label>
 
@@ -459,7 +467,7 @@ function CreateLoanForm({
                 disabled={inviteLoading}
               >
                 {inviteLoading
-                  ? "Создаём ссылку..."
+                  ? "Создаем ссылку..."
                   : "Отправить приглашение"}
               </button>
 

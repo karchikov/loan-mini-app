@@ -30,6 +30,53 @@ def is_admin(user: User) -> bool:
     return user.role == "admin"
 
 
+def get_utc_today_date():
+    return datetime.now(timezone.utc).date()
+
+
+def get_loan_due_date_utc_date(loan: Loan):
+    if loan.due_date is None:
+        return None
+
+    due_date = loan.due_date
+
+    if due_date.tzinfo is None:
+        due_date = due_date.replace(tzinfo=timezone.utc)
+
+    return due_date.astimezone(timezone.utc).date()
+
+
+def is_draft_loan_expired(loan: Loan) -> bool:
+    if loan.status != LoanStatus.DRAFT:
+        return False
+
+    due_date = get_loan_due_date_utc_date(loan)
+
+    if due_date is None:
+        return False
+
+    return due_date < get_utc_today_date()
+
+
+def expire_draft_loan_if_needed(
+    db: Session,
+    loan: Loan,
+) -> bool:
+    if not is_draft_loan_expired(loan):
+        return False
+
+    loan.status = LoanStatus.EXPIRED
+    loan.updated_at = datetime.now(timezone.utc)
+    loan.remaining_balance = calculate_remaining_balance(
+        db=db,
+        loan=loan,
+    )
+
+    db.commit()
+
+    return True
+
+
 def get_connected_user_ids(
     users: list[User],
     current_user_id: int,
@@ -313,10 +360,25 @@ def confirm_loan(
             detail="Only lender can confirm this loan",
         )
 
+    if loan.status == LoanStatus.EXPIRED:
+        raise HTTPException(
+            status_code=400,
+            detail="Loan request expired and cannot be confirmed",
+        )
+
     if loan.status != LoanStatus.DRAFT:
         raise HTTPException(
             status_code=400,
             detail="Only draft loan can be confirmed",
+        )
+
+    if expire_draft_loan_if_needed(
+        db=db,
+        loan=loan,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Loan request expired and cannot be confirmed",
         )
 
     loan.status = LoanStatus.ACTIVE
@@ -360,10 +422,25 @@ def reject_loan(
             detail="Only lender can reject this loan",
         )
 
+    if loan.status == LoanStatus.EXPIRED:
+        raise HTTPException(
+            status_code=400,
+            detail="Loan request expired and cannot be rejected",
+        )
+
     if loan.status != LoanStatus.DRAFT:
         raise HTTPException(
             status_code=400,
             detail="Only draft loan can be rejected",
+        )
+
+    if expire_draft_loan_if_needed(
+        db=db,
+        loan=loan,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Loan request expired and cannot be rejected",
         )
 
     loan.status = LoanStatus.REJECTED

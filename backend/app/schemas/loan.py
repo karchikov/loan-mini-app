@@ -25,6 +25,7 @@ class LoanStatus(str, Enum):
     CANCELLED = "cancelled"
     DISPUTED = "disputed"
     REJECTED = "rejected"
+    EXPIRED = "expired"
 
 
 class RepaymentStatus(str, Enum):
@@ -47,7 +48,9 @@ class LoanBase(BaseModel):
 
     currency: str = "RUB"
     description: str | None = None
-    due_date: datetime | None = None
+    due_date: datetime = Field(
+        description="Loan due date is required",
+    )
 
     @field_validator("currency")
     @classmethod

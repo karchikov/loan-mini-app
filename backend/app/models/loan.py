@@ -27,6 +27,7 @@ class LoanStatus(str, enum.Enum):
     CANCELLED = "cancelled"
     DISPUTED = "disputed"
     REJECTED = "rejected"
+    EXPIRED = "expired"
 
 
 class Loan(Base):

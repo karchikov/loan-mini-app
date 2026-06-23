@@ -4,17 +4,15 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.database import SessionLocal
-from app.services.loan_reminder_service import process_loan_reminders
+from app.services.loan_expiration_service import process_expired_draft_loans
 from app.services.loan_interest_accrual_service import process_daily_interest_accrual
+from app.services.loan_reminder_service import process_loan_reminders
 
 logger = logging.getLogger(__name__)
 
 scheduler = BackgroundScheduler(timezone="UTC")
 
 
-# -----------------------------
-# REMINDERS JOB (EXISTING)
-# -----------------------------
 def run_loan_reminders_job() -> None:
     db = SessionLocal()
 
@@ -27,9 +25,23 @@ def run_loan_reminders_job() -> None:
         db.close()
 
 
-# -----------------------------
-# INTEREST ACCRUAL JOB (NEW)
-# -----------------------------
+def run_draft_expiration_job() -> None:
+    db = SessionLocal()
+
+    try:
+        expired_count = process_expired_draft_loans(db=db)
+
+        logger.info(
+            "Draft loan expiration job completed. Expired loans: %s",
+            expired_count,
+        )
+    except Exception:
+        logger.exception("Draft loan expiration job failed")
+        db.rollback()
+    finally:
+        db.close()
+
+
 def run_interest_accrual_job() -> None:
     db = SessionLocal()
 
@@ -42,28 +54,23 @@ def run_interest_accrual_job() -> None:
         db.close()
 
 
-# -----------------------------
-# START SCHEDULER
-# -----------------------------
 def start_scheduler() -> None:
     if scheduler.running:
         return
 
-    # reminders (existing)
     scheduler.add_job(
-        run_loan_reminders_job,
+        run_draft_expiration_job,
         CronTrigger(
-            hour=9,
-            minute=0,
+            hour=0,
+            minute=1,
             timezone="UTC",
         ),
-        id="loan_reminders_daily",
+        id="loan_draft_expiration_daily",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
     )
 
-    # interest accrual (NEW)
     scheduler.add_job(
         run_interest_accrual_job,
         CronTrigger(
@@ -77,9 +84,25 @@ def start_scheduler() -> None:
         coalesce=True,
     )
 
+    scheduler.add_job(
+        run_loan_reminders_job,
+        CronTrigger(
+            hour=9,
+            minute=0,
+            timezone="UTC",
+        ),
+        id="loan_reminders_daily",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+
     scheduler.start()
 
-    logger.warning("Scheduler started (reminders + interest accrual)")
+    logger.warning(
+        "Scheduler started "
+        "(draft expiration + interest accrual + reminders)"
+    )
 
 
 def shutdown_scheduler() -> None:

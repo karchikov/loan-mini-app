@@ -3,6 +3,20 @@ import { useMemo } from "react";
 import EmptyState from "../components/EmptyState";
 import LoanCard from "../components/LoanCard";
 
+const ACTIVE_LOAN_STATUSES = [
+  "draft",
+  "active",
+  "partially_paid",
+  "waiting_confirmation",
+];
+
+const CLOSED_LOAN_STATUSES = [
+  "paid",
+  "rejected",
+  "cancelled",
+  "expired",
+];
+
 function LoansPage({
   mode,
   loans,
@@ -21,17 +35,14 @@ function LoansPage({
     const sorted = [...loans].sort((a, b) => b.id - a.id);
 
     if (mode === "paid") {
-      return sorted.filter((loan) => loan.status === "paid");
+      return sorted.filter((loan) =>
+        CLOSED_LOAN_STATUSES.includes(loan.status)
+      );
     }
 
-    return sorted.filter((loan) => {
-      return (
-        loan.status === "draft" ||
-        loan.status === "active" ||
-        loan.status === "partially_paid" ||
-        loan.status === "waiting_confirmation"
-      );
-    });
+    return sorted.filter((loan) =>
+      ACTIVE_LOAN_STATUSES.includes(loan.status)
+    );
   }, [loans, mode]);
 
   const title =
@@ -44,7 +55,7 @@ function LoansPage({
 
   const emptyText =
     mode === "paid"
-      ? "Здесь будут отображаться полностью погашенные займы."
+      ? "Здесь будут отображаться погашенные, отклоненные, отмененные и истекшие заявки."
       : "Здесь будут отображаться займы, которые ожидают подтверждения, активны или погашены частично.";
 
   return (
