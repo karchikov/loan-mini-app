@@ -300,11 +300,34 @@ body {
   box-shadow: var(--shadow-soft);
 }
 
+.loan-card-overdue {
+  border: 2px solid rgba(220, 38, 38, 0.75);
+  box-shadow:
+    0 0 0 1px rgba(220, 38, 38, 0.10),
+    var(--shadow-soft);
+}
+
 .loan-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+}
+
+.loan-overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, 0.32);
+  background: rgba(220, 38, 38, 0.10);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .loan-id {
@@ -781,6 +804,10 @@ input::placeholder {
   .loan-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .loan-overdue-badge {
+    width: fit-content;
   }
 
   .loan-main-amount {

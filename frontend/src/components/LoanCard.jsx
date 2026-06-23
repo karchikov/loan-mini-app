@@ -374,7 +374,13 @@ function LoanCard({
   }
 
   return (
-    <div className="card loan-card">
+    <div
+      className={
+        isOverdue
+          ? "card loan-card loan-card-overdue"
+          : "card loan-card"
+      }
+    >
       <div className="loan-header">
         <div>
           <p className="loan-id">Займ №{loan.id}</p>
@@ -383,6 +389,12 @@ function LoanCard({
             {statusLabel}
           </p>
         </div>
+
+        {isOverdue && (
+          <div className="loan-overdue-badge">
+            Займ просрочен
+          </div>
+        )}
       </div>
 
       <div className="loan-main-amount">
