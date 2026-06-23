@@ -53,3 +53,9 @@ export async function getRepayments(loanId) {
 
   return response.data;
 }
+
+export async function getInterestLedger(loanId) {
+  const response = await client.get(`/loans/${loanId}/interest-ledger`);
+
+  return response.data;
+}

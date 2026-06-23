@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -92,6 +92,18 @@ class RepaymentResponse(BaseModel):
     confirmed_by_user_id: int | None = None
     rejected_at: datetime | None = None
     rejected_by_user_id: int | None = None
+    created_at: datetime
+
+
+class LoanInterestLedgerResponse(BaseModel):
+    id: int
+    loan_id: int
+    accrual_date: date
+    principal_amount: Decimal
+    annual_interest_rate: Decimal
+    interest_amount: Decimal
+    paid_amount: Decimal
+    unpaid_interest_amount: Decimal
     created_at: datetime
 
 

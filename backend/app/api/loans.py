@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.loan import (
     LoanCreate,
+    LoanInterestLedgerResponse,
     LoanResponse,
     RepaymentCreate,
     RepaymentResponse,
@@ -15,6 +16,7 @@ from app.services.loan_service import (
     confirm_repayment,
     create_loan,
     create_repayment,
+    get_interest_ledger_history,
     get_loan_by_id,
     get_repayment_history,
     get_user_loans,
@@ -195,6 +197,22 @@ def get_loan_repayments(
     current_user: User = Depends(get_current_user),
 ):
     return get_repayment_history(
+        db=db,
+        loan_id=loan_id,
+        current_user=current_user,
+    )
+
+
+@router.get(
+    "/{loan_id}/interest-ledger",
+    response_model=list[LoanInterestLedgerResponse],
+)
+def get_loan_interest_ledger(
+    loan_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return get_interest_ledger_history(
         db=db,
         loan_id=loan_id,
         current_user=current_user,

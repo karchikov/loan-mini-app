@@ -6,6 +6,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.loan import Loan, LoanStatus
+from app.models.loan_interest_ledger import LoanInterestLedger
 from app.models.repayment import Repayment, RepaymentStatus
 from app.models.user import User
 from app.schemas.loan import LoanCreate, RepaymentCreate
@@ -805,3 +806,60 @@ def get_repayment_history(
     )
 
     return result.scalars().all()
+
+
+def get_interest_ledger_history(
+    db: Session,
+    loan_id: int,
+    current_user: User,
+):
+    loan = get_loan_by_id(
+        db=db,
+        loan_id=loan_id,
+        current_user=current_user,
+    )
+
+    if loan is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Loan not found",
+        )
+
+    result = db.execute(
+        select(LoanInterestLedger)
+        .where(
+            LoanInterestLedger.loan_id == loan.id
+        )
+        .order_by(
+            LoanInterestLedger.accrual_date.desc(),
+            LoanInterestLedger.id.desc(),
+        )
+    )
+
+    ledger_rows = result.scalars().all()
+
+    history = []
+
+    for ledger in ledger_rows:
+        unpaid_interest_amount = normalize_money(
+            ledger.interest_amount - ledger.paid_amount
+        )
+
+        if unpaid_interest_amount < 0:
+            unpaid_interest_amount = Decimal("0.00")
+
+        history.append(
+            {
+                "id": ledger.id,
+                "loan_id": ledger.loan_id,
+                "accrual_date": ledger.accrual_date,
+                "principal_amount": ledger.principal_amount,
+                "annual_interest_rate": ledger.annual_interest_rate,
+                "interest_amount": ledger.interest_amount,
+                "paid_amount": ledger.paid_amount,
+                "unpaid_interest_amount": unpaid_interest_amount,
+                "created_at": ledger.created_at,
+            }
+        )
+
+    return history

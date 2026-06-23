@@ -1,8 +1,10 @@
 import { useState } from "react";
 
+import InterestLedgerHistory from "./InterestLedgerHistory";
 import RepaymentHistory from "./RepaymentHistory";
 import RepayForm from "./RepayForm";
 
+import { getInterestLedger } from "../api/loans";
 import { formatDate, formatMoney } from "../utils/formatters";
 
 const LOAN_STATUS_LABELS = {
@@ -152,6 +154,11 @@ function LoanCard({
   const [processingRepaymentId, setProcessingRepaymentId] = useState(null);
   const [repaymentActionError, setRepaymentActionError] = useState("");
 
+  const [interestLedgerVisible, setInterestLedgerVisible] = useState(false);
+  const [interestLedgerLoading, setInterestLedgerLoading] = useState(false);
+  const [interestLedgerError, setInterestLedgerError] = useState("");
+  const [interestLedgerEntries, setInterestLedgerEntries] = useState(null);
+
   const isBorrower = user.id === loan.borrower_id;
   const isLender = user.id === loan.lender_id;
 
@@ -253,6 +260,31 @@ function LoanCard({
     return isBorrower || wasSubmittedByCurrentUser;
   }
 
+  async function loadInterestLedger(force = false) {
+    if (!force && interestLedgerEntries) {
+      return;
+    }
+
+    try {
+      setInterestLedgerError("");
+      setInterestLedgerLoading(true);
+
+      const entries = await getInterestLedger(loan.id);
+
+      setInterestLedgerEntries(
+        Array.isArray(entries) ? entries : []
+      );
+    } catch (error) {
+      console.error(error);
+
+      setInterestLedgerError(
+        "Не удалось загрузить историю процентов. Попробуйте еще раз."
+      );
+    } finally {
+      setInterestLedgerLoading(false);
+    }
+  }
+
   async function handleConfirmPendingRepayment(repaymentId) {
     if (!onConfirmRepayment) {
       return;
@@ -263,6 +295,10 @@ function LoanCard({
       setProcessingRepaymentId(repaymentId);
 
       await onConfirmRepayment(loan.id, repaymentId);
+
+      if (interestLedgerVisible) {
+        await loadInterestLedger(true);
+      }
     } catch (error) {
       console.error(error);
       setRepaymentActionError(
@@ -293,6 +329,18 @@ function LoanCard({
     }
   }
 
+  async function handleMarkPaid() {
+    if (!onMarkPaid) {
+      return;
+    }
+
+    await onMarkPaid(loan.id);
+
+    if (interestLedgerVisible) {
+      await loadInterestLedger(true);
+    }
+  }
+
   async function handleToggleHistory() {
     const nextVisible = !historyVisible;
 
@@ -312,6 +360,16 @@ function LoanCard({
       } finally {
         setHistoryLoading(false);
       }
+    }
+  }
+
+  async function handleToggleInterestLedger() {
+    const nextVisible = !interestLedgerVisible;
+
+    setInterestLedgerVisible(nextVisible);
+
+    if (nextVisible) {
+      await loadInterestLedger(false);
     }
   }
 
@@ -579,7 +637,7 @@ function LoanCard({
         {canMarkPaid && (
           <button
             className="full-width"
-            onClick={() => onMarkPaid(loan.id)}
+            onClick={handleMarkPaid}
           >
             {markPaidButtonText}
           </button>
@@ -592,6 +650,15 @@ function LoanCard({
           {historyVisible
             ? "Скрыть историю погашений"
             : "Показать историю погашений"}
+        </button>
+
+        <button
+          className="full-width secondary-button"
+          onClick={handleToggleInterestLedger}
+        >
+          {interestLedgerVisible
+            ? "Скрыть историю процентов"
+            : "Показать историю процентов"}
         </button>
       </div>
 
@@ -608,6 +675,23 @@ function LoanCard({
           isAdmin={isAdmin}
           onConfirmRepayment={onConfirmRepayment}
           onRejectRepayment={onRejectRepayment}
+        />
+      )}
+
+      {interestLedgerLoading && (
+        <p className="muted">Загружаем историю процентов...</p>
+      )}
+
+      {interestLedgerError && (
+        <p className="form-error">
+          {interestLedgerError}
+        </p>
+      )}
+
+      {interestLedgerVisible && !interestLedgerLoading && (
+        <InterestLedgerHistory
+          ledgerEntries={interestLedgerEntries || []}
+          currency={currency}
         />
       )}
     </div>
