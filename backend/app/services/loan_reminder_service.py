@@ -2,12 +2,12 @@ import logging
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.loan import Loan, LoanStatus
 from app.models.loan_reminder_log import LoanReminderLog
-from app.models.repayment import Repayment
+from app.services.loan_balance_service import calculate_remaining_balance
 from app.services.telegram_notifications import format_money, send_telegram_message
 
 logger = logging.getLogger(__name__)
@@ -18,30 +18,6 @@ REMINDER_BEFORE_3 = "before_3"
 REMINDER_BEFORE_1 = "before_1"
 REMINDER_DUE_TODAY = "due_today"
 REMINDER_OVERDUE_DAILY = "overdue_daily"
-
-
-def calculate_remaining_balance(
-    db: Session,
-    loan: Loan,
-) -> Decimal:
-    result = db.execute(
-        select(
-            func.coalesce(
-                func.sum(Repayment.amount),
-                0,
-            )
-        ).where(
-            Repayment.loan_id == loan.id
-        )
-    )
-
-    total_paid = result.scalar_one()
-    remaining_balance = loan.amount - total_paid
-
-    if remaining_balance < 0:
-        return Decimal("0")
-
-    return remaining_balance
 
 
 def get_reminder_type(
