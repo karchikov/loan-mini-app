@@ -10,6 +10,9 @@ const AVAILABLE_CURRENCIES = [
   "USDC",
 ];
 
+const PAST_DUE_DATE_ERROR =
+  "Нельзя создать заявку с прошедшей датой возврата. Выберите сегодняшнюю или будущую дату.";
+
 function formatUserName(user) {
   const nameParts = [
     user.first_name,
@@ -31,6 +34,23 @@ function normalizeSearchValue(value) {
     .toLowerCase();
 }
 
+function getTodayUtcDateString() {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function isDateBeforeTodayUtc(dateValue) {
+  if (!dateValue) {
+    return false;
+  }
+
+  return dateValue < getTodayUtcDateString();
+}
+
 function CreateLoanForm({
   lenders = [],
   onCreate,
@@ -44,16 +64,15 @@ function CreateLoanForm({
   const [currency, setCurrency] = useState("RUB");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
-
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [lenderSearch, setLenderSearch] = useState("");
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [error, setError] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
 
+  const todayUtcDateString = getTodayUtcDateString();
   const hasAvailableLenders = lenders.length > 0;
 
   const selectedLender = lenders.find(
@@ -212,6 +231,12 @@ function CreateLoanForm({
       setError(
         "Укажите срок возврата займа",
       );
+      return;
+    }
+
+    if (isDateBeforeTodayUtc(dueDate)) {
+      setError(PAST_DUE_DATE_ERROR);
+      window.alert(PAST_DUE_DATE_ERROR);
       return;
     }
 
@@ -410,6 +435,7 @@ function CreateLoanForm({
           <input
             type="date"
             value={dueDate}
+            min={todayUtcDateString}
             onChange={(e) => setDueDate(e.target.value)}
             disabled={loading || inviteLoading || !hasAvailableLenders}
             required

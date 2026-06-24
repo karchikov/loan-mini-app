@@ -17,6 +17,37 @@ const CLOSED_LOAN_STATUSES = [
   "expired",
 ];
 
+function getTodayUtcDateString() {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getLoanDueDateString(loan) {
+  if (!loan?.due_date || typeof loan.due_date !== "string") {
+    return "";
+  }
+
+  return loan.due_date.split("T")[0];
+}
+
+function isDraftLoanExpiredByUtcDate(loan) {
+  if (loan.status !== "draft") {
+    return false;
+  }
+
+  const dueDateString = getLoanDueDateString(loan);
+
+  if (!dueDateString) {
+    return false;
+  }
+
+  return dueDateString < getTodayUtcDateString();
+}
+
 function LoansPage({
   mode,
   loans,
@@ -36,12 +67,14 @@ function LoansPage({
 
     if (mode === "paid") {
       return sorted.filter((loan) =>
-        CLOSED_LOAN_STATUSES.includes(loan.status)
+        CLOSED_LOAN_STATUSES.includes(loan.status) ||
+        isDraftLoanExpiredByUtcDate(loan)
       );
     }
 
     return sorted.filter((loan) =>
-      ACTIVE_LOAN_STATUSES.includes(loan.status)
+      ACTIVE_LOAN_STATUSES.includes(loan.status) &&
+      !isDraftLoanExpiredByUtcDate(loan)
     );
   }, [loans, mode]);
 

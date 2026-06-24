@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException
@@ -34,16 +34,39 @@ def get_utc_today_date():
     return datetime.now(timezone.utc).date()
 
 
-def get_loan_due_date_utc_date(loan: Loan):
-    if loan.due_date is None:
+def get_due_date_utc_date(due_date):
+    if due_date is None:
         return None
 
-    due_date = loan.due_date
+    if isinstance(due_date, datetime):
+        normalized_due_date = due_date
 
-    if due_date.tzinfo is None:
-        due_date = due_date.replace(tzinfo=timezone.utc)
+        if normalized_due_date.tzinfo is None:
+            normalized_due_date = normalized_due_date.replace(tzinfo=timezone.utc)
 
-    return due_date.astimezone(timezone.utc).date()
+        return normalized_due_date.astimezone(timezone.utc).date()
+
+    if isinstance(due_date, date):
+        return due_date
+
+    return None
+
+
+def get_loan_due_date_utc_date(loan: Loan):
+    return get_due_date_utc_date(loan.due_date)
+
+
+def validate_loan_due_date_not_in_past(due_date):
+    due_date_utc_date = get_due_date_utc_date(due_date)
+
+    if due_date_utc_date is None:
+        return
+
+    if due_date_utc_date < get_utc_today_date():
+        raise HTTPException(
+            status_code=400,
+            detail="Нельзя создать заявку с прошедшей датой возврата",
+        )
 
 
 def is_draft_loan_expired(loan: Loan) -> bool:
@@ -117,7 +140,6 @@ def is_user_in_telegram_network(
     result = db.execute(
         select(User)
     )
-
     users = result.scalars().all()
 
     connected_user_ids = get_connected_user_ids(
@@ -207,6 +229,8 @@ def create_loan(
     loan_data: LoanCreate,
     current_user: User,
 ) -> Loan:
+    validate_loan_due_date_not_in_past(loan_data.due_date)
+
     if loan_data.lender_id == current_user.id:
         raise HTTPException(
             status_code=400,
@@ -216,7 +240,6 @@ def create_loan(
     lender_result = db.execute(
         select(User).where(User.id == loan_data.lender_id)
     )
-
     lender = lender_result.scalar_one_or_none()
 
     if lender is None:
@@ -294,7 +317,6 @@ def get_user_loans(
             db=db,
             loan=loan,
         )
-
         enriched_loans.append(enriched_loan)
 
     return enriched_loans
@@ -310,7 +332,6 @@ def get_loan_by_id(
             Loan.id == loan_id
         )
     )
-
     loan = result.scalar_one_or_none()
 
     if loan is None:
@@ -914,7 +935,6 @@ def get_interest_ledger_history(
     )
 
     ledger_rows = result.scalars().all()
-
     history = []
 
     for ledger in ledger_rows:
