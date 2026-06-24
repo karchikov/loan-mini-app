@@ -39,9 +39,7 @@ function formatUser(userData, fallbackId) {
     return `Пользователь #${fallbackId}`;
   }
 
-  const name =
-    userData.first_name || `Пользователь #${fallbackId}`;
-
+  const name = userData.first_name || `Пользователь #${fallbackId}`;
   const username = userData.username;
 
   if (username) {
@@ -104,7 +102,6 @@ function parseDateOnly(value) {
 
 function getTodayDateOnly() {
   const today = new Date();
-
   today.setHours(0, 0, 0, 0);
 
   return today;
@@ -158,11 +155,11 @@ function LoanCard({
   onConfirmRepayment,
   onRejectRepayment,
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [processingRepaymentId, setProcessingRepaymentId] = useState(null);
   const [repaymentActionError, setRepaymentActionError] = useState("");
-
   const [interestLedgerVisible, setInterestLedgerVisible] = useState(false);
   const [interestLedgerLoading, setInterestLedgerLoading] = useState(false);
   const [interestLedgerError, setInterestLedgerError] = useState("");
@@ -181,45 +178,45 @@ function LoanCard({
     loan.lender_id,
   );
 
+  const summaryTitle = isBorrower
+    ? `Кредитор: ${lenderName}`
+    : isLender
+      ? `Заемщик: ${borrowerName}`
+      : isAdmin
+        ? `${borrowerName} → ${lenderName}`
+        : `Займ №${loan.id}`;
+
   const pendingRepayments = Array.isArray(loan.pending_repayments)
     ? loan.pending_repayments
     : [];
 
-  const pendingRepaymentsCount =
-    Number(
-      loan.pending_repayments_count ||
-        pendingRepayments.length ||
-        0
-    );
+  const pendingRepaymentsCount = Number(
+    loan.pending_repayments_count || pendingRepayments.length || 0,
+  );
 
-  const hasPendingRepayments =
-    pendingRepaymentsCount > 0;
+  const hasPendingRepayments = pendingRepaymentsCount > 0;
 
   const dueDate = parseDateOnly(loan.due_date);
   const overdueDays = getOverdueDays(dueDate);
 
   const isDraftExpiredLocally =
-    loan.status === "draft" &&
-    overdueDays > 0;
+    loan.status === "draft" && overdueDays > 0;
 
   const isExpiredLoan =
-    loan.status === "expired" ||
-    isDraftExpiredLocally;
+    loan.status === "expired" || isDraftExpiredLocally;
 
   const isClosedLoan =
-    CLOSED_LOAN_STATUSES.includes(loan.status) ||
-    isExpiredLoan;
+    CLOSED_LOAN_STATUSES.includes(loan.status) || isExpiredLoan;
 
   const isIssuedLoan =
     ISSUED_LOAN_STATUSES.includes(loan.status);
 
   const isOverdue =
-    overdueDays > 0 &&
-    isIssuedLoan &&
-    !isClosedLoan;
+    overdueDays > 0 && isIssuedLoan && !isClosedLoan;
 
-  const displayStatus =
-    isExpiredLoan ? "expired" : loan.status;
+  const displayStatus = isExpiredLoan
+    ? "expired"
+    : loan.status;
 
   const canConfirmOrReject =
     loan.status === "draft" &&
@@ -227,32 +224,44 @@ function LoanCard({
     (isAdmin || isLender);
 
   const canRepay =
-    (loan.status === "active" ||
-      loan.status === "partially_paid") &&
+    (
+      loan.status === "active" ||
+      loan.status === "partially_paid"
+    ) &&
     (isAdmin || isBorrower);
 
   const canMarkPaid =
-    (loan.status === "active" ||
+    (
+      loan.status === "active" ||
       loan.status === "partially_paid" ||
-      loan.status === "waiting_confirmation") &&
+      loan.status === "waiting_confirmation"
+    ) &&
     (isAdmin || isLender) &&
     !hasPendingRepayments;
 
-  const statusLabel =
-    LOAN_STATUS_LABELS[displayStatus] || displayStatus;
-
+  const statusLabel = LOAN_STATUS_LABELS[displayStatus] || displayStatus;
   const currency = loan.currency || "RUB";
-
-  const principalRemaining =
-    loan.principal_remaining ?? loan.amount;
-
-  const unpaidInterest =
-    loan.unpaid_interest ?? 0;
+  const principalRemaining = loan.principal_remaining ?? loan.amount;
+  const unpaidInterest = loan.unpaid_interest ?? 0;
 
   const markPaidButtonText =
     loan.status === "waiting_confirmation"
       ? "Подтвердить закрытие займа"
       : "Отметить как погашенный";
+
+  function toggleExpanded() {
+    setIsExpanded((currentValue) => !currentValue);
+  }
+
+  function handleSummaryKeyDown(event) {
+    if (
+      event.key === "Enter" ||
+      event.key === " "
+    ) {
+      event.preventDefault();
+      toggleExpanded();
+    }
+  }
 
   function canManagePendingRepayment(repayment) {
     if (!repayment || !user) {
@@ -298,13 +307,13 @@ function LoanCard({
       const entries = await getInterestLedger(loan.id);
 
       setInterestLedgerEntries(
-        Array.isArray(entries) ? entries : []
+        Array.isArray(entries) ? entries : [],
       );
     } catch (error) {
       console.error(error);
 
       setInterestLedgerError(
-        "Не удалось загрузить историю процентов. Попробуйте еще раз."
+        "Не удалось загрузить историю процентов. Попробуйте еще раз.",
       );
     } finally {
       setInterestLedgerLoading(false);
@@ -327,8 +336,9 @@ function LoanCard({
       }
     } catch (error) {
       console.error(error);
+
       setRepaymentActionError(
-        "Не удалось подтвердить платеж. Попробуйте еще раз."
+        "Не удалось подтвердить платеж. Попробуйте еще раз.",
       );
     } finally {
       setProcessingRepaymentId(null);
@@ -347,8 +357,9 @@ function LoanCard({
       await onRejectRepayment(loan.id, repaymentId);
     } catch (error) {
       console.error(error);
+
       setRepaymentActionError(
-        "Не удалось отклонить платеж. Попробуйте еще раз."
+        "Не удалось отклонить платеж. Попробуйте еще раз.",
       );
     } finally {
       setProcessingRepaymentId(null);
@@ -400,355 +411,406 @@ function LoanCard({
   }
 
   return (
-    <div
-      className={
-        isExpiredLoan
-          ? "card loan-card loan-card-expired"
-          : isOverdue
-            ? "card loan-card loan-card-overdue"
-            : "card loan-card"
-      }
+    <article
+      className={`card loan-card ${
+        isOverdue ? "loan-card-overdue" : ""
+      } ${
+        isExpiredLoan ? "loan-card-expired" : ""
+      }`}
     >
-      <div className="loan-header">
+      <div
+        className="loan-header"
+        role="button"
+        tabIndex={0}
+        onClick={toggleExpanded}
+        onKeyDown={handleSummaryKeyDown}
+        aria-expanded={isExpanded}
+        style={{ cursor: "pointer" }}
+      >
         <div>
-          <p className="loan-id">Займ №{loan.id}</p>
+          <p className="loan-id">
+            {summaryTitle}
+          </p>
 
           <p className={`loan-status ${displayStatus}`}>
             {statusLabel}
           </p>
+
+          {isOverdue && (
+            <div className="loan-overdue-badge">
+              Займ просрочен
+            </div>
+          )}
+
+          {isExpiredLoan && (
+            <div className="loan-expired-badge">
+              Срок заявки истек
+            </div>
+          )}
         </div>
 
-        {isOverdue && (
-          <div className="loan-overdue-badge">
-            Займ просрочен
-          </div>
-        )}
-
-        {isExpiredLoan && (
-          <div className="loan-expired-badge">
-            Срок заявки истек
-          </div>
-        )}
+        <div className="loan-amount">
+          {formatMoney(loan.amount, currency)}
+        </div>
       </div>
 
-      <div className="loan-main-amount">
-        {formatMoney(loan.amount, currency)}
-      </div>
+      {isExpanded && (
+        <>
+          <div className="loan-info-panel">
+            <h3 className="loan-info-title">
+              Детали займа
+            </h3>
 
-      <div className="loan-info-panel">
-        <h3 className="loan-info-title">
-          Детали займа
-        </h3>
+            <div className="loan-info-row">
+              <span className="loan-info-label">
+                Технический номер
+              </span>
 
-        <div className="loan-info-row">
-          <span className="loan-info-label">
-            Сумма займа
-          </span>
+              <span className="loan-info-value">
+                №{loan.id}
+              </span>
+            </div>
 
-          <strong className="loan-info-value">
-            {formatMoney(loan.amount, currency)}
-          </strong>
-        </div>
+            <div className="loan-info-row">
+              <span className="loan-info-label">
+                Сумма займа
+              </span>
 
-        <div className="loan-info-row">
-          <span className="loan-info-label">
-            Тело долга
-          </span>
+              <span className="loan-info-value">
+                {formatMoney(loan.amount, currency)}
+              </span>
+            </div>
 
-          <strong className="loan-info-value">
-            {formatMoney(principalRemaining, currency)}
-          </strong>
-        </div>
+            <div className="loan-info-row">
+              <span className="loan-info-label">
+                Тело долга
+              </span>
 
-        <div className="loan-info-row">
-          <span className="loan-info-label">
-            Начисленные проценты
-          </span>
+              <span className="loan-info-value">
+                {formatMoney(principalRemaining, currency)}
+              </span>
+            </div>
 
-          <strong className="loan-info-value">
-            {formatMoney(unpaidInterest, currency)}
-          </strong>
-        </div>
+            <div className="loan-info-row">
+              <span className="loan-info-label">
+                Начисленные проценты
+              </span>
 
-        <div className="loan-info-row">
-          <span className="loan-info-label">
-            Остаток к погашению
-          </span>
+              <span className="loan-info-value">
+                {formatMoney(unpaidInterest, currency)}
+              </span>
+            </div>
 
-          <strong className="loan-info-value">
-            {formatMoney(loan.remaining_balance, currency)}
-          </strong>
-        </div>
+            <div className="loan-info-row">
+              <span className="loan-info-label">
+                Остаток к погашению
+              </span>
 
-        <div className="loan-info-row">
-          <span className="loan-info-label">
-            Ставка
-          </span>
+              <span className="loan-info-value">
+                {formatMoney(loan.remaining_balance, currency)}
+              </span>
+            </div>
 
-          <strong className="loan-info-value">
-            {formatAnnualInterestRate(loan.annual_interest_rate)} годовых
-          </strong>
-        </div>
+            <div className="loan-info-row">
+              <span className="loan-info-label">
+                Ставка
+              </span>
 
-        <div className="loan-info-row">
-          <span className="loan-info-label">
-            Дата выдачи
-          </span>
+              <span className="loan-info-value">
+                {formatAnnualInterestRate(loan.annual_interest_rate)} годовых
+              </span>
+            </div>
 
-          <strong className="loan-info-value">
-            {formatDateValue(loan.created_at)}
-          </strong>
-        </div>
+            <div className="loan-info-row">
+              <span className="loan-info-label">
+                Дата выдачи
+              </span>
 
-        <div
-          className={
-            isOverdue
-              ? "loan-info-row loan-overdue-row"
-              : isExpiredLoan
-                ? "loan-info-row loan-expired-row"
-                : "loan-info-row"
-          }
-        >
-          <span className="loan-info-label">
-            Срок возврата
-          </span>
+              <span className="loan-info-value">
+                {formatDateValue(loan.created_at)}
+              </span>
+            </div>
 
-          <div className="loan-info-value">
-            <strong
-              className={
-                isOverdue
-                  ? "loan-overdue-value"
-                  : ""
-              }
+            <div
+              className={`loan-info-row ${
+                isOverdue ? "loan-overdue-row" : ""
+              } ${
+                isExpiredLoan ? "loan-expired-row" : ""
+              }`}
             >
-              {formatDateValue(loan.due_date)}
-            </strong>
+              <span className="loan-info-label">
+                Срок возврата
+              </span>
 
-            {isOverdue && (
-              <p className="loan-overdue-text">
-                Займ просрочен
-                <br />
-                Просрочен на {overdueDays} {formatDaysWord(overdueDays)}
-              </p>
-            )}
+              <span className="loan-info-value">
+                <span className={isOverdue ? "loan-overdue-value" : ""}>
+                  {formatDateValue(loan.due_date)}
+                </span>
 
-            {isExpiredLoan && (
-              <p className="loan-expired-text">
-                Заявка не была подтверждена кредитором до срока возврата
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="loan-info-row">
-          <span className="loan-info-label">
-            Последнее начисление процентов
-          </span>
-
-          <strong className="loan-info-value">
-            {formatDateValue(
-              loan.last_interest_accrual_date,
-              "начислений пока нет",
-            )}
-          </strong>
-        </div>
-      </div>
-
-      {hasPendingRepayments && (
-        <div className="loan-balance-box">
-          <span>Платежи на подтверждении</span>
-
-          <strong>
-            {formatMoney(
-              loan.pending_repayments_total || 0,
-              currency,
-            )}
-          </strong>
-
-          <p className="muted">
-            Количество платежей: {pendingRepaymentsCount}
-          </p>
-
-          {repaymentActionError && (
-            <p className="form-error">
-              {repaymentActionError}
-            </p>
-          )}
-
-          {pendingRepayments.length === 0 && (
-            <p className="muted">
-              Откройте историю погашений, чтобы посмотреть платежи.
-            </p>
-          )}
-
-          {pendingRepayments.map((repayment) => {
-            const isProcessing =
-              processingRepaymentId === repayment.id;
-
-            const canManage =
-              canManagePendingRepayment(repayment);
-
-            const showBorrowerNotice =
-              shouldShowBorrowerPendingNotice(repayment);
-
-            return (
-              <div
-                key={repayment.id}
-                className="repayment-item"
-              >
-                <p>
-                  <strong>Сумма:</strong>{" "}
-                  {formatMoney(
-                    repayment.amount,
-                    currency,
-                  )}
-                </p>
-
-                <p>
-                  <strong>Дата:</strong>{" "}
-                  {formatDate(repayment.created_at)}
-                </p>
-
-                {showBorrowerNotice && (
-                  <p className="muted">
-                    Платеж отправлен кредитору на подтверждение.
+                {isOverdue && (
+                  <p className="loan-overdue-text">
+                    Займ просрочен. Просрочен на {overdueDays}{" "}
+                    {formatDaysWord(overdueDays)}.
                   </p>
                 )}
 
-                {canManage && (
-                  <div className="loan-actions-stack">
-                    <button
-                      className="full-width"
-                      disabled={isProcessing}
-                      onClick={() =>
-                        handleConfirmPendingRepayment(repayment.id)
-                      }
-                    >
-                      {isProcessing
-                        ? "Обработка..."
-                        : "Подтвердить платеж"}
-                    </button>
-
-                    <button
-                      className="full-width danger-button"
-                      disabled={isProcessing}
-                      onClick={() =>
-                        handleRejectPendingRepayment(repayment.id)
-                      }
-                    >
-                      Отклонить платеж
-                    </button>
-                  </div>
+                {isExpiredLoan && (
+                  <p className="loan-expired-text">
+                    Заявка не была подтверждена кредитором до срока возврата
+                  </p>
                 )}
+              </span>
+            </div>
+
+            <div className="loan-info-row">
+              <span className="loan-info-label">
+                Последнее начисление процентов
+              </span>
+
+              <span className="loan-info-value">
+                {formatDateValue(
+                  loan.last_interest_accrual_date,
+                  "начислений пока нет",
+                )}
+              </span>
+            </div>
+
+            {hasPendingRepayments && (
+              <div className="loan-info-row">
+                <span className="loan-info-label">
+                  Платежи на подтверждении
+                </span>
+
+                <span className="loan-info-value">
+                  {formatMoney(
+                    loan.pending_repayments_total || 0,
+                    currency,
+                  )}
+
+                  <p className="loan-overdue-text">
+                    Количество платежей: {pendingRepaymentsCount}
+                  </p>
+                </span>
               </div>
-            );
-          })}
-        </div>
+            )}
+          </div>
+
+          {hasPendingRepayments && (
+            <div className="loan-info-panel">
+              <h3 className="loan-info-title">
+                Платежи на подтверждении
+              </h3>
+
+              {repaymentActionError && (
+                <p className="form-error">
+                  {repaymentActionError}
+                </p>
+              )}
+
+              {pendingRepayments.length === 0 && (
+                <p className="muted">
+                  Откройте историю погашений, чтобы посмотреть платежи.
+                </p>
+              )}
+
+              {pendingRepayments.map((repayment) => {
+                const isProcessing =
+                  processingRepaymentId === repayment.id;
+
+                const canManage =
+                  canManagePendingRepayment(repayment);
+
+                const showBorrowerNotice =
+                  shouldShowBorrowerPendingNotice(repayment);
+
+                return (
+                  <div
+                    className="repayment-item"
+                    key={repayment.id}
+                  >
+                    <p>
+                      <strong>
+                        Сумма:
+                      </strong>{" "}
+                      {formatMoney(
+                        repayment.amount,
+                        currency,
+                      )}
+                    </p>
+
+                    <p>
+                      <strong>
+                        Дата:
+                      </strong>{" "}
+                      {formatDate(repayment.created_at)}
+                    </p>
+
+                    {showBorrowerNotice && (
+                      <p className="muted">
+                        Платеж отправлен кредитору на подтверждение.
+                      </p>
+                    )}
+
+                    {canManage && (
+                      <div className="actions">
+                        <button
+                          type="button"
+                          disabled={isProcessing}
+                          onClick={() =>
+                            handleConfirmPendingRepayment(repayment.id)
+                          }
+                        >
+                          {isProcessing
+                            ? "Обработка..."
+                            : "Подтвердить платеж"}
+                        </button>
+
+                        <button
+                          type="button"
+                          className="danger-button"
+                          disabled={isProcessing}
+                          onClick={() =>
+                            handleRejectPendingRepayment(repayment.id)
+                          }
+                        >
+                          Отклонить платеж
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="loan-body">
+            <p>
+              <strong>
+                Заемщик:
+              </strong>{" "}
+              {borrowerName}
+            </p>
+
+            <p>
+              <strong>
+                Кредитор:
+              </strong>{" "}
+              {lenderName}
+            </p>
+
+            <p>
+              <strong>
+                Валюта:
+              </strong>{" "}
+              {currency}
+            </p>
+
+            <p>
+              <strong>
+                Описание:
+              </strong>{" "}
+              {loan.description || "Без описания"}
+            </p>
+          </div>
+
+          {canConfirmOrReject && (
+            <div className="actions">
+              <button
+                type="button"
+                onClick={() => onConfirm(loan.id)}
+              >
+                Подтвердить
+              </button>
+
+              <button
+                type="button"
+                className="danger-button"
+                onClick={() => onReject(loan.id)}
+              >
+                Отклонить
+              </button>
+            </div>
+          )}
+
+          {canRepay && (
+            <div className="repay-box">
+              <RepayForm
+                currency={currency}
+                onRepay={(amount) => onRepay(loan.id, amount)}
+              />
+            </div>
+          )}
+
+          <div className="loan-actions-stack">
+            {canMarkPaid && (
+              <button
+                type="button"
+                onClick={handleMarkPaid}
+              >
+                {markPaidButtonText}
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleToggleHistory}
+            >
+              {historyVisible
+                ? "Скрыть историю погашений"
+                : "Показать историю погашений"}
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleToggleInterestLedger}
+            >
+              {interestLedgerVisible
+                ? "Скрыть историю процентов"
+                : "Показать историю процентов"}
+            </button>
+          </div>
+
+          {historyLoading && (
+            <p className="muted">
+              Загружаем историю...
+            </p>
+          )}
+
+          {historyVisible && !historyLoading && (
+            <RepaymentHistory
+              repayments={repayments || []}
+              currency={currency}
+              loan={loan}
+              user={user}
+              isAdmin={isAdmin}
+              onConfirmRepayment={onConfirmRepayment}
+              onRejectRepayment={onRejectRepayment}
+            />
+          )}
+
+          {interestLedgerLoading && (
+            <p className="muted">
+              Загружаем историю процентов...
+            </p>
+          )}
+
+          {interestLedgerError && (
+            <p className="form-error">
+              {interestLedgerError}
+            </p>
+          )}
+
+          {interestLedgerVisible && !interestLedgerLoading && (
+            <InterestLedgerHistory
+              ledgerEntries={interestLedgerEntries || []}
+              currency={currency}
+            />
+          )}
+        </>
       )}
-
-      <div className="loan-body">
-        <p>
-          <strong>Заемщик:</strong> {borrowerName}
-        </p>
-
-        <p>
-          <strong>Кредитор:</strong> {lenderName}
-        </p>
-
-        <p>
-          <strong>Валюта:</strong> {currency}
-        </p>
-
-        <p>
-          <strong>Описание:</strong>{" "}
-          {loan.description || "Без описания"}
-        </p>
-      </div>
-
-      {canConfirmOrReject && (
-        <div className="actions loan-actions">
-          <button onClick={() => onConfirm(loan.id)}>
-            Подтвердить
-          </button>
-
-          <button
-            className="danger-button"
-            onClick={() => onReject(loan.id)}
-          >
-            Отклонить
-          </button>
-        </div>
-      )}
-
-      {canRepay && (
-        <RepayForm
-          currency={currency}
-          onRepay={(amount) => onRepay(loan.id, amount)}
-        />
-      )}
-
-      <div className="loan-actions-stack">
-        {canMarkPaid && (
-          <button
-            className="full-width"
-            onClick={handleMarkPaid}
-          >
-            {markPaidButtonText}
-          </button>
-        )}
-
-        <button
-          className="full-width secondary-button"
-          onClick={handleToggleHistory}
-        >
-          {historyVisible
-            ? "Скрыть историю погашений"
-            : "Показать историю погашений"}
-        </button>
-
-        <button
-          className="full-width secondary-button"
-          onClick={handleToggleInterestLedger}
-        >
-          {interestLedgerVisible
-            ? "Скрыть историю процентов"
-            : "Показать историю процентов"}
-        </button>
-      </div>
-
-      {historyLoading && (
-        <p className="muted">Загружаем историю...</p>
-      )}
-
-      {historyVisible && !historyLoading && (
-        <RepaymentHistory
-          repayments={repayments || []}
-          currency={currency}
-          loan={loan}
-          user={user}
-          isAdmin={isAdmin}
-          onConfirmRepayment={onConfirmRepayment}
-          onRejectRepayment={onRejectRepayment}
-        />
-      )}
-
-      {interestLedgerLoading && (
-        <p className="muted">Загружаем историю процентов...</p>
-      )}
-
-      {interestLedgerError && (
-        <p className="form-error">
-          {interestLedgerError}
-        </p>
-      )}
-
-      {interestLedgerVisible && !interestLedgerLoading && (
-        <InterestLedgerHistory
-          ledgerEntries={interestLedgerEntries || []}
-          currency={currency}
-        />
-      )}
-    </div>
+    </article>
   );
 }
 
