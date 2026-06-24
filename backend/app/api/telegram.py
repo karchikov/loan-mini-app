@@ -1,3 +1,4 @@
+from secrets import compare_digest
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -16,12 +17,25 @@ router = APIRouter(
 def verify_telegram_secret(
     x_telegram_bot_api_secret_token: str | None = Header(
         default=None,
+        alias="X-Telegram-Bot-Api-Secret-Token",
     ),
 ) -> None:
     if not settings.TELEGRAM_WEBHOOK_SECRET:
-        return
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Telegram webhook secret is not configured",
+        )
 
-    if x_telegram_bot_api_secret_token != settings.TELEGRAM_WEBHOOK_SECRET:
+    if not x_telegram_bot_api_secret_token:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Missing Telegram webhook secret",
+        )
+
+    if not compare_digest(
+        x_telegram_bot_api_secret_token,
+        settings.TELEGRAM_WEBHOOK_SECRET,
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid Telegram webhook secret",
