@@ -7,7 +7,6 @@ const ACTIVE_LOAN_STATUSES = [
   "draft",
   "active",
   "partially_paid",
-  "waiting_confirmation",
 ];
 
 const CLOSED_LOAN_STATUSES = [

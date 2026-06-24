@@ -30,7 +30,6 @@ const CLOSED_LOAN_STATUSES = [
 const ISSUED_LOAN_STATUSES = [
   "active",
   "partially_paid",
-  "waiting_confirmation",
   "overdue",
 ];
 
@@ -233,8 +232,7 @@ function LoanCard({
   const canMarkPaid =
     (
       loan.status === "active" ||
-      loan.status === "partially_paid" ||
-      loan.status === "waiting_confirmation"
+      loan.status === "partially_paid"
     ) &&
     (isAdmin || isLender) &&
     !hasPendingRepayments;
