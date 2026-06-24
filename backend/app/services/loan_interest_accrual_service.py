@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy import select
@@ -23,7 +23,7 @@ def calculate_daily_interest(
 
 
 def process_daily_interest_accrual(db: Session) -> int:
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
 
     loans_result = db.execute(
         select(Loan).where(
