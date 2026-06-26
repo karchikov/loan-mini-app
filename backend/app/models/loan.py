@@ -20,6 +20,7 @@ from app.models.base import Base
 class LoanStatus(str, enum.Enum):
     DRAFT = "draft"
     WAITING_CONFIRMATION = "waiting_confirmation"
+    FUNDING_PENDING = "funding_pending"
     ACTIVE = "active"
     PARTIALLY_PAID = "partially_paid"
     PAID = "paid"
@@ -78,6 +79,45 @@ class Loan(Base):
         Enum(LoanStatus, name="loan_status"),
         nullable=False,
         default=LoanStatus.DRAFT,
+    )
+
+    funding_activation_code_hash: Mapped[str | None] = mapped_column(
+        String(128),
+        nullable=True,
+    )
+
+    funding_activation_code_generated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    funding_activation_code_generated_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    funding_activation_code_attempts: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+
+    lender_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    borrower_received_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    borrower_received_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

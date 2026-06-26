@@ -5,13 +5,16 @@ from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.user import User
 from app.schemas.loan import (
+    LoanActivationRequest,
     LoanCreate,
+    LoanFundingActivationCodeResponse,
     LoanInterestLedgerResponse,
     LoanResponse,
     RepaymentCreate,
     RepaymentResponse,
 )
 from app.services.loan_service import (
+    activate_loan,
     confirm_loan,
     confirm_repayment,
     create_loan,
@@ -21,6 +24,7 @@ from app.services.loan_service import (
     get_repayment_history,
     get_user_loans,
     mark_loan_as_paid,
+    regenerate_funding_activation_code,
     reject_loan,
     reject_repayment,
 )
@@ -87,16 +91,60 @@ def get_loan(
 
 @router.post(
     "/{loan_id}/confirm",
-    response_model=LoanResponse,
+    response_model=LoanFundingActivationCodeResponse,
 )
 def confirm_existing_loan(
     loan_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return confirm_loan(
+    result = confirm_loan(
         db=db,
         loan_id=loan_id,
+        current_user=current_user,
+    )
+
+    return {
+        "loan": result.loan,
+        "activation_code": result.activation_code,
+    }
+
+
+@router.post(
+    "/{loan_id}/activation-code/regenerate",
+    response_model=LoanFundingActivationCodeResponse,
+)
+def regenerate_existing_loan_activation_code(
+    loan_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = regenerate_funding_activation_code(
+        db=db,
+        loan_id=loan_id,
+        current_user=current_user,
+    )
+
+    return {
+        "loan": result.loan,
+        "activation_code": result.activation_code,
+    }
+
+
+@router.post(
+    "/{loan_id}/activate",
+    response_model=LoanResponse,
+)
+def activate_existing_loan(
+    loan_id: int,
+    activation_data: LoanActivationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return activate_loan(
+        db=db,
+        loan_id=loan_id,
+        activation_code=activation_data.activation_code,
         current_user=current_user,
     )
 

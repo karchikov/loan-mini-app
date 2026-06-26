@@ -159,7 +159,7 @@ def handle_loan_callback(
             current_user=user,
         )
 
-        return "Займ подтвержден."
+        return "Заявка подтверждена. Код активации отправлен вам отдельным сообщением."
 
     if action == "reject":
         reject_loan(

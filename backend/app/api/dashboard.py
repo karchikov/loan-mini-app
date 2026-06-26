@@ -223,6 +223,12 @@ def get_dashboard_loans(
                 Loan.created_at,
                 Loan.updated_at,
                 Loan.due_date,
+                Loan.lender_confirmed_at,
+                Loan.funding_activation_code_generated_at,
+                Loan.funding_activation_code_generated_by_user_id,
+                Loan.funding_activation_code_attempts,
+                Loan.borrower_received_at,
+                Loan.borrower_received_by_user_id,
             ),
             joinedload(Loan.lender).load_only(
                 User.id,
@@ -428,6 +434,34 @@ def build_dashboard_history(
                 created_at=loan.created_at,
             )
         )
+
+        if loan.status == LoanStatus.FUNDING_PENDING:
+            history.append(
+                UserHistoryItemResponse(
+                    id=f"loan-{loan.id}-funding-pending",
+                    type="loan_funding_pending",
+                    title="Кредитор подтвердил готовность выдать займ",
+                    description=(
+                        f"Займ #{loan.id} ожидает подтверждения получения денег заемщиком"
+                    ),
+                    amount=loan.amount,
+                    created_at=loan.updated_at,
+                )
+            )
+
+        if loan.status == LoanStatus.ACTIVE and loan.borrower_received_at:
+            history.append(
+                UserHistoryItemResponse(
+                    id=f"loan-{loan.id}-activated",
+                    type="loan_activated",
+                    title="Займ активирован",
+                    description=(
+                        f"Заемщик подтвердил получение денег по займу #{loan.id}"
+                    ),
+                    amount=loan.amount,
+                    created_at=loan.borrower_received_at,
+                )
+            )
 
         if loan.status == LoanStatus.PAID:
             history.append(

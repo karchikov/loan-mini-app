@@ -10,6 +10,7 @@ import { formatDate, formatMoney } from "../utils/formatters";
 const LOAN_STATUS_LABELS = {
   draft: "Ожидает подтверждения кредитора",
   waiting_confirmation: "Ожидает подтверждения погашения",
+  funding_pending: "Ожидает подтверждения получения денег",
   active: "Активен",
   partially_paid: "Частично погашен",
   paid: "Погашен",
@@ -141,13 +142,33 @@ function formatDaysWord(days) {
   return "дней";
 }
 
+function getApiErrorText(error, fallbackText) {
+  const detail = error?.response?.data?.detail;
+
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => item?.msg)
+      .filter(Boolean)
+      .join(". ");
+  }
+
+  return fallbackText;
+}
+
 function LoanCard({
   loan,
   user,
   isAdmin,
   repayments,
+  fundingActivationCode,
   onLoadRepayments,
   onConfirm,
+  onRegenerateActivationCode,
+  onActivateLoan,
   onReject,
   onMarkPaid,
   onRepay,
@@ -163,9 +184,15 @@ function LoanCard({
   const [interestLedgerLoading, setInterestLedgerLoading] = useState(false);
   const [interestLedgerError, setInterestLedgerError] = useState("");
   const [interestLedgerEntries, setInterestLedgerEntries] = useState(null);
+  const [activationCodeInput, setActivationCodeInput] = useState("");
+  const [activationActionError, setActivationActionError] = useState("");
+  const [activationActionSuccess, setActivationActionSuccess] = useState("");
+  const [activationProcessing, setActivationProcessing] = useState(false);
+  const [regenerateProcessing, setRegenerateProcessing] = useState(false);
 
   const isBorrower = user.id === loan.borrower_id;
   const isLender = user.id === loan.lender_id;
+  const isFundingPending = loan.status === "funding_pending";
 
   const borrowerName = formatUser(
     loan.borrower,
@@ -198,11 +225,15 @@ function LoanCard({
   const dueDate = parseDateOnly(loan.due_date);
   const overdueDays = getOverdueDays(dueDate);
 
-  const isDraftExpiredLocally =
-    loan.status === "draft" && overdueDays > 0;
+  const isRequestExpiredLocally =
+    (
+      loan.status === "draft" ||
+      loan.status === "funding_pending"
+    ) &&
+    overdueDays > 0;
 
   const isExpiredLoan =
-    loan.status === "expired" || isDraftExpiredLocally;
+    loan.status === "expired" || isRequestExpiredLocally;
 
   const isClosedLoan =
     CLOSED_LOAN_STATUSES.includes(loan.status) || isExpiredLoan;
@@ -219,8 +250,18 @@ function LoanCard({
 
   const canConfirmOrReject =
     loan.status === "draft" &&
-    !isDraftExpiredLocally &&
+    !isRequestExpiredLocally &&
     (isAdmin || isLender);
+
+  const canRegenerateActivationCode =
+    isFundingPending &&
+    !isExpiredLoan &&
+    (isAdmin || isLender);
+
+  const canActivateLoan =
+    isFundingPending &&
+    !isExpiredLoan &&
+    (isAdmin || isBorrower);
 
   const canRepay =
     (
@@ -258,6 +299,78 @@ function LoanCard({
     ) {
       event.preventDefault();
       toggleExpanded();
+    }
+  }
+
+  function handleActivationCodeInputChange(event) {
+    const value = event.target.value.replace(/\D/g, "").slice(0, 4);
+
+    setActivationCodeInput(value);
+    setActivationActionError("");
+    setActivationActionSuccess("");
+  }
+
+  async function handleRegenerateActivationCode() {
+    if (!onRegenerateActivationCode) {
+      return;
+    }
+
+    try {
+      setActivationActionError("");
+      setActivationActionSuccess("");
+      setRegenerateProcessing(true);
+
+      await onRegenerateActivationCode(loan.id);
+
+      setActivationActionSuccess(
+        "Новый код сгенерирован. Старый код больше не действует.",
+      );
+    } catch (error) {
+      console.error(error);
+
+      setActivationActionError(
+        getApiErrorText(
+          error,
+          "Не удалось сгенерировать новый код. Попробуйте еще раз.",
+        ),
+      );
+    } finally {
+      setRegenerateProcessing(false);
+    }
+  }
+
+  async function handleActivateLoan() {
+    if (!onActivateLoan) {
+      return;
+    }
+
+    if (activationCodeInput.length !== 4) {
+      setActivationActionError("Введите 4-значный код активации.");
+      return;
+    }
+
+    try {
+      setActivationActionError("");
+      setActivationActionSuccess("");
+      setActivationProcessing(true);
+
+      await onActivateLoan(loan.id, activationCodeInput);
+
+      setActivationCodeInput("");
+      setActivationActionSuccess(
+        "Получение денег подтверждено. Займ активирован.",
+      );
+    } catch (error) {
+      console.error(error);
+
+      setActivationActionError(
+        getApiErrorText(
+          error,
+          "Не удалось активировать займ. Проверьте код и попробуйте еще раз.",
+        ),
+      );
+    } finally {
+      setActivationProcessing(false);
     }
   }
 
@@ -414,6 +527,8 @@ function LoanCard({
         isOverdue ? "loan-card-overdue" : ""
       } ${
         isExpiredLoan ? "loan-card-expired" : ""
+      } ${
+        isFundingPending && !isExpiredLoan ? "loan-card-funding-pending" : ""
       }`}
     >
       <div
@@ -521,13 +636,37 @@ function LoanCard({
 
             <div className="loan-info-row">
               <span className="loan-info-label">
-                Дата выдачи
+                Дата создания заявки
               </span>
 
               <span className="loan-info-value">
                 {formatDateValue(loan.created_at)}
               </span>
             </div>
+
+            {loan.lender_confirmed_at && (
+              <div className="loan-info-row">
+                <span className="loan-info-label">
+                  Дата подтверждения кредитором
+                </span>
+
+                <span className="loan-info-value">
+                  {formatDateValue(loan.lender_confirmed_at)}
+                </span>
+              </div>
+            )}
+
+            {loan.borrower_received_at && (
+              <div className="loan-info-row">
+                <span className="loan-info-label">
+                  Дата подтверждения получения денег
+                </span>
+
+                <span className="loan-info-value">
+                  {formatDateValue(loan.borrower_received_at)}
+                </span>
+              </div>
+            )}
 
             <div
               className={`loan-info-row ${
@@ -554,7 +693,7 @@ function LoanCard({
 
                 {isExpiredLoan && (
                   <p className="loan-expired-text">
-                    Заявка не была подтверждена кредитором до срока возврата
+                    Заявка не была полностью подтверждена до срока возврата
                   </p>
                 )}
               </span>
@@ -592,6 +731,103 @@ function LoanCard({
               </div>
             )}
           </div>
+
+          {isFundingPending && !isExpiredLoan && (
+            <div className="loan-info-panel funding-confirmation-panel">
+              <h3 className="loan-info-title">
+                Подтверждение получения денег
+              </h3>
+
+              {(isLender || isAdmin) && (
+                <div className="funding-confirmation-section">
+                  <p className="funding-confirmation-title">
+                    Ожидаем подтверждения получения денег заемщиком.
+                  </p>
+
+                  <p className="muted">
+                    Передайте код заемщику только после фактической передачи денег вне приложения.
+                  </p>
+
+                  {fundingActivationCode ? (
+                    <div className="activation-code-box">
+                      <span>Код активации</span>
+                      <strong>{fundingActivationCode}</strong>
+                    </div>
+                  ) : (
+                    <p className="muted">
+                      Старый код повторно не отображается. При необходимости сгенерируйте новый код.
+                    </p>
+                  )}
+
+                  {canRegenerateActivationCode && (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={regenerateProcessing}
+                      onClick={handleRegenerateActivationCode}
+                    >
+                      {regenerateProcessing
+                        ? "Генерируем..."
+                        : "Сгенерировать новый код"}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {(isBorrower || isAdmin) && (
+                <div className="funding-confirmation-section">
+                  <p className="funding-confirmation-title">
+                    Кредитор подтвердил готовность выдать займ.
+                  </p>
+
+                  <p className="muted">
+                    После фактического получения денег вне приложения введите код активации.
+                  </p>
+
+                  <label className="form-field">
+                    <span>4-значный код</span>
+
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={activationCodeInput}
+                      onChange={handleActivationCodeInputChange}
+                      placeholder="0000"
+                    />
+                  </label>
+
+                  <p className="legal-confirmation-text">
+                    Я подтверждаю, что получил денежные средства от кредитора вне приложения и согласен с условиями займа.
+                  </p>
+
+                  {activationActionError && (
+                    <p className="form-error">
+                      {activationActionError}
+                    </p>
+                  )}
+
+                  {activationActionSuccess && (
+                    <p className="form-success">
+                      {activationActionSuccess}
+                    </p>
+                  )}
+
+                  {canActivateLoan && (
+                    <button
+                      type="button"
+                      disabled={activationProcessing}
+                      onClick={handleActivateLoan}
+                    >
+                      {activationProcessing
+                        ? "Подтверждаем..."
+                        : "Подтвердить получение денег"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {hasPendingRepayments && (
             <div className="loan-info-panel">
@@ -717,7 +953,7 @@ function LoanCard({
                 type="button"
                 onClick={() => onConfirm(loan.id)}
               >
-                Подтвердить
+                Подтвердить готовность выдать займ
               </button>
 
               <button

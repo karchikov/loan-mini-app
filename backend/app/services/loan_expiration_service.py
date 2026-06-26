@@ -22,7 +22,12 @@ def process_expired_draft_loans(db: Session) -> int:
     result = db.execute(
         select(Loan)
         .where(
-            Loan.status == LoanStatus.DRAFT,
+            Loan.status.in_(
+                [
+                    LoanStatus.DRAFT,
+                    LoanStatus.FUNDING_PENDING,
+                ]
+            ),
             Loan.due_date.is_not(None),
             Loan.due_date < today_start_utc,
         )

@@ -5,6 +5,7 @@ import LoanCard from "../components/LoanCard";
 
 const ACTIVE_LOAN_STATUSES = [
   "draft",
+  "funding_pending",
   "active",
   "partially_paid",
 ];
@@ -33,8 +34,11 @@ function getLoanDueDateString(loan) {
   return loan.due_date.split("T")[0];
 }
 
-function isDraftLoanExpiredByUtcDate(loan) {
-  if (loan.status !== "draft") {
+function isLoanRequestExpiredByUtcDate(loan) {
+  if (
+    loan.status !== "draft" &&
+    loan.status !== "funding_pending"
+  ) {
     return false;
   }
 
@@ -53,8 +57,11 @@ function LoansPage({
   user,
   isAdmin,
   repayments,
+  fundingActivationCodes,
   onLoadRepayments,
   onConfirm,
+  onRegenerateActivationCode,
+  onActivateLoan,
   onReject,
   onMarkPaid,
   onRepay,
@@ -67,13 +74,13 @@ function LoansPage({
     if (mode === "paid") {
       return sorted.filter((loan) =>
         CLOSED_LOAN_STATUSES.includes(loan.status) ||
-        isDraftLoanExpiredByUtcDate(loan)
+        isLoanRequestExpiredByUtcDate(loan)
       );
     }
 
     return sorted.filter((loan) =>
       ACTIVE_LOAN_STATUSES.includes(loan.status) &&
-      !isDraftLoanExpiredByUtcDate(loan)
+      !isLoanRequestExpiredByUtcDate(loan)
     );
   }, [loans, mode]);
 
@@ -88,7 +95,7 @@ function LoansPage({
   const emptyText =
     mode === "paid"
       ? "Здесь будут отображаться погашенные, отклоненные, отмененные и истекшие заявки."
-      : "Здесь будут отображаться займы, которые ожидают подтверждения, активны или погашены частично.";
+      : "Здесь будут отображаться заявки, ожидание подтверждения получения денег, активные и частично погашенные займы.";
 
   return (
     <div>
@@ -110,8 +117,11 @@ function LoansPage({
           user={user}
           isAdmin={isAdmin}
           repayments={repayments[loan.id]}
+          fundingActivationCode={fundingActivationCodes?.[loan.id] || ""}
           onLoadRepayments={onLoadRepayments}
           onConfirm={onConfirm}
+          onRegenerateActivationCode={onRegenerateActivationCode}
+          onActivateLoan={onActivateLoan}
           onReject={onReject}
           onMarkPaid={onMarkPaid}
           onRepay={onRepay}

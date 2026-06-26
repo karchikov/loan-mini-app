@@ -1,10 +1,15 @@
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
+import hashlib
+import hmac
+import secrets
 
 from fastapi import HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.config import settings
 from app.models.loan import Loan, LoanStatus
 from app.models.loan_interest_ledger import LoanInterestLedger
 from app.models.repayment import Repayment, RepaymentStatus
@@ -16,14 +21,26 @@ from app.services.loan_balance_service import (
     normalize_money,
 )
 from app.services.telegram_notifications import (
-    notify_loan_confirmed,
+    notify_funding_activation_code_regenerated,
+    notify_loan_activated,
     notify_loan_created,
+    notify_loan_funding_pending,
     notify_loan_paid,
     notify_loan_rejected,
     notify_repayment_confirmed,
     notify_repayment_rejected,
     notify_repayment_submitted,
 )
+
+
+FUNDING_ACTIVATION_CODE_LENGTH = 4
+MAX_FUNDING_ACTIVATION_CODE_ATTEMPTS = 5
+
+
+@dataclass
+class FundingActivationCodeResult:
+    loan: Loan
+    activation_code: str
 
 
 def is_admin(user: User) -> bool:
@@ -69,8 +86,15 @@ def validate_loan_due_date_not_in_past(due_date):
         )
 
 
-def is_draft_loan_expired(loan: Loan) -> bool:
-    if loan.status != LoanStatus.DRAFT:
+def is_expirable_loan_request(loan: Loan) -> bool:
+    return loan.status in [
+        LoanStatus.DRAFT,
+        LoanStatus.FUNDING_PENDING,
+    ]
+
+
+def is_loan_request_expired(loan: Loan) -> bool:
+    if not is_expirable_loan_request(loan):
         return False
 
     due_date = get_loan_due_date_utc_date(loan)
@@ -81,15 +105,16 @@ def is_draft_loan_expired(loan: Loan) -> bool:
     return due_date < get_utc_today_date()
 
 
-def expire_draft_loan_if_needed(
+def expire_loan_request_if_needed(
     db: Session,
     loan: Loan,
 ) -> bool:
-    if not is_draft_loan_expired(loan):
+    if not is_loan_request_expired(loan):
         return False
 
     loan.status = LoanStatus.EXPIRED
     loan.updated_at = datetime.now(timezone.utc)
+    loan.funding_activation_code_hash = None
     loan.remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
@@ -98,6 +123,80 @@ def expire_draft_loan_if_needed(
     db.commit()
 
     return True
+
+
+def is_draft_loan_expired(loan: Loan) -> bool:
+    return loan.status == LoanStatus.DRAFT and is_loan_request_expired(loan)
+
+
+def expire_draft_loan_if_needed(
+    db: Session,
+    loan: Loan,
+) -> bool:
+    if loan.status != LoanStatus.DRAFT:
+        return False
+
+    return expire_loan_request_if_needed(
+        db=db,
+        loan=loan,
+    )
+
+
+def generate_funding_activation_code() -> str:
+    max_value = 10 ** FUNDING_ACTIVATION_CODE_LENGTH
+
+    return f"{secrets.randbelow(max_value):0{FUNDING_ACTIVATION_CODE_LENGTH}d}"
+
+
+def build_funding_activation_code_hash(
+    loan_id: int,
+    activation_code: str,
+) -> str:
+    message = f"{loan_id}:{activation_code}".encode("utf-8")
+    secret_key = settings.SECRET_KEY.encode("utf-8")
+
+    return hmac.new(
+        secret_key,
+        message,
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def verify_funding_activation_code(
+    loan: Loan,
+    activation_code: str,
+) -> bool:
+    if not loan.funding_activation_code_hash:
+        return False
+
+    expected_hash = build_funding_activation_code_hash(
+        loan_id=loan.id,
+        activation_code=activation_code,
+    )
+
+    return hmac.compare_digest(
+        expected_hash,
+        loan.funding_activation_code_hash,
+    )
+
+
+def set_funding_activation_code(
+    loan: Loan,
+    current_user: User,
+) -> str:
+    activation_code = generate_funding_activation_code()
+    now_utc = datetime.now(timezone.utc)
+
+    loan.funding_activation_code_hash = build_funding_activation_code_hash(
+        loan_id=loan.id,
+        activation_code=activation_code,
+    )
+    loan.funding_activation_code_generated_at = now_utc
+    loan.funding_activation_code_generated_by_user_id = current_user.id
+    loan.funding_activation_code_attempts = 0
+    loan.updated_at = now_utc
+
+    return activation_code
 
 
 def get_connected_user_ids(
@@ -359,11 +458,10 @@ def confirm_loan(
     db: Session,
     loan_id: int,
     current_user: User,
-) -> Loan:
-    loan = get_loan_by_id(
+) -> FundingActivationCodeResult:
+    loan = lock_loan_by_id(
         db=db,
         loan_id=loan_id,
-        current_user=current_user,
     )
 
     if loan is None:
@@ -371,6 +469,11 @@ def confirm_loan(
             status_code=404,
             detail="Loan not found",
         )
+
+    attach_loan_users(
+        db=db,
+        loan=loan,
+    )
 
     if (
         not is_admin(current_user)
@@ -402,7 +505,17 @@ def confirm_loan(
             detail="Loan request expired and cannot be confirmed",
         )
 
-    loan.status = LoanStatus.ACTIVE
+    now_utc = datetime.now(timezone.utc)
+
+    loan.status = LoanStatus.FUNDING_PENDING
+    loan.lender_confirmed_at = now_utc
+    loan.updated_at = now_utc
+
+    activation_code = set_funding_activation_code(
+        loan=loan,
+        current_user=current_user,
+    )
+
     loan.remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
@@ -410,7 +523,191 @@ def confirm_loan(
 
     db.commit()
 
-    notify_loan_confirmed(
+    notify_loan_funding_pending(
+        loan=loan,
+        activation_code=activation_code,
+    )
+
+    return FundingActivationCodeResult(
+        loan=loan,
+        activation_code=activation_code,
+    )
+
+
+def regenerate_funding_activation_code(
+    db: Session,
+    loan_id: int,
+    current_user: User,
+) -> FundingActivationCodeResult:
+    loan = lock_loan_by_id(
+        db=db,
+        loan_id=loan_id,
+    )
+
+    if loan is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Loan not found",
+        )
+
+    attach_loan_users(
+        db=db,
+        loan=loan,
+    )
+
+    if (
+        not is_admin(current_user)
+        and loan.lender_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Only lender can regenerate activation code",
+        )
+
+    if loan.status != LoanStatus.FUNDING_PENDING:
+        raise HTTPException(
+            status_code=400,
+            detail="Activation code can be regenerated only for funding pending loan",
+        )
+
+    if expire_loan_request_if_needed(
+        db=db,
+        loan=loan,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Loan request expired and activation code cannot be regenerated",
+        )
+
+    activation_code = set_funding_activation_code(
+        loan=loan,
+        current_user=current_user,
+    )
+
+    loan.remaining_balance = calculate_remaining_balance(
+        db=db,
+        loan=loan,
+    )
+
+    db.commit()
+
+    notify_funding_activation_code_regenerated(
+        loan=loan,
+        activation_code=activation_code,
+    )
+
+    return FundingActivationCodeResult(
+        loan=loan,
+        activation_code=activation_code,
+    )
+
+
+def activate_loan(
+    db: Session,
+    loan_id: int,
+    activation_code: str,
+    current_user: User,
+) -> Loan:
+    loan = lock_loan_by_id(
+        db=db,
+        loan_id=loan_id,
+    )
+
+    if loan is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Loan not found",
+        )
+
+    attach_loan_users(
+        db=db,
+        loan=loan,
+    )
+
+    if (
+        not is_admin(current_user)
+        and loan.borrower_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Only borrower can activate this loan",
+        )
+
+    if loan.status == LoanStatus.EXPIRED:
+        raise HTTPException(
+            status_code=400,
+            detail="Loan request expired and cannot be activated",
+        )
+
+    if loan.status != LoanStatus.FUNDING_PENDING:
+        raise HTTPException(
+            status_code=400,
+            detail="Only funding pending loan can be activated",
+        )
+
+    if expire_loan_request_if_needed(
+        db=db,
+        loan=loan,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Loan request expired and cannot be activated",
+        )
+
+    if not loan.funding_activation_code_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="Activation code is not available. Ask lender to generate a new code",
+        )
+
+    if loan.funding_activation_code_attempts >= MAX_FUNDING_ACTIVATION_CODE_ATTEMPTS:
+        raise HTTPException(
+            status_code=400,
+            detail="Activation code is locked. Ask lender to generate a new code",
+        )
+
+    normalized_activation_code = activation_code.strip()
+
+    if not verify_funding_activation_code(
+        loan=loan,
+        activation_code=normalized_activation_code,
+    ):
+        loan.funding_activation_code_attempts += 1
+        loan.updated_at = datetime.now(timezone.utc)
+
+        db.commit()
+
+        attempts_left = (
+            MAX_FUNDING_ACTIVATION_CODE_ATTEMPTS
+            - loan.funding_activation_code_attempts
+        )
+
+        if attempts_left <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid activation code. Code is locked after too many attempts. Ask lender to generate a new code",
+            )
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid activation code. Attempts left: {attempts_left}",
+        )
+
+    now_utc = datetime.now(timezone.utc)
+
+    loan.status = LoanStatus.ACTIVE
+    loan.borrower_received_at = now_utc
+    loan.borrower_received_by_user_id = current_user.id
+    loan.funding_activation_code_hash = None
+    loan.updated_at = now_utc
+    loan.remaining_balance = calculate_remaining_balance(
+        db=db,
+        loan=loan,
+    )
+
+    db.commit()
+
+    notify_loan_activated(
         loan=loan,
     )
 

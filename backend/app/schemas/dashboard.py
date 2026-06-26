@@ -58,7 +58,15 @@ class DashboardLoanResponse(BaseModel):
     status: LoanStatus
 
     created_at: datetime
+    updated_at: datetime
     due_date: date | datetime | None = None
+
+    lender_confirmed_at: datetime | None = None
+    funding_activation_code_generated_at: datetime | None = None
+    funding_activation_code_generated_by_user_id: int | None = None
+    funding_activation_code_attempts: int = 0
+    borrower_received_at: datetime | None = None
+    borrower_received_by_user_id: int | None = None
 
     principal_remaining: Decimal = Decimal("0.00")
     unpaid_interest: Decimal = Decimal("0.00")

@@ -3,10 +3,12 @@ import { useState } from "react";
 import { createLoan } from "../api/createLoan";
 
 import {
+  activateLoan,
   confirmLoan,
   confirmRepayment,
   getRepayments,
   markLoanPaid,
+  regenerateFundingActivationCode,
   rejectLoan,
   rejectRepayment,
   repayLoan,
@@ -36,7 +38,15 @@ export function useLoans() {
   }
 
   async function confirm(id) {
-    await confirmLoan(id);
+    return confirmLoan(id);
+  }
+
+  async function regenerateActivationCode(id) {
+    return regenerateFundingActivationCode(id);
+  }
+
+  async function activate(id, activationCode) {
+    return activateLoan(id, activationCode);
   }
 
   async function reject(id) {
@@ -71,6 +81,8 @@ export function useLoans() {
     loadRepayments,
     create,
     confirm,
+    regenerateActivationCode,
+    activate,
     reject,
     markPaid,
     repay,

@@ -18,6 +18,7 @@ ALLOWED_CURRENCIES = {
 class LoanStatus(str, Enum):
     DRAFT = "draft"
     WAITING_CONFIRMATION = "waiting_confirmation"
+    FUNDING_PENDING = "funding_pending"
     ACTIVE = "active"
     PARTIALLY_PAID = "partially_paid"
     PAID = "paid"
@@ -72,6 +73,26 @@ class LoanCreate(LoanBase):
         gt=0,
         description="Selected lender user id",
     )
+
+
+class LoanActivationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    activation_code: str = Field(
+        min_length=4,
+        max_length=4,
+        description="4-digit funding activation code",
+    )
+
+    @field_validator("activation_code")
+    @classmethod
+    def validate_activation_code(cls, value: str) -> str:
+        normalized_value = value.strip()
+
+        if len(normalized_value) != 4 or not normalized_value.isdigit():
+            raise ValueError("Activation code must contain exactly 4 digits")
+
+        return normalized_value
 
 
 class RepaymentCreate(BaseModel):
@@ -130,7 +151,23 @@ class LoanResponse(BaseModel):
 
     status: LoanStatus
 
+    lender_confirmed_at: datetime | None = None
+    funding_activation_code_generated_at: datetime | None = None
+    funding_activation_code_generated_by_user_id: int | None = None
+    funding_activation_code_attempts: int = 0
+    borrower_received_at: datetime | None = None
+    borrower_received_by_user_id: int | None = None
+
     created_at: datetime
     updated_at: datetime
 
     remaining_balance: Decimal
+
+
+class LoanFundingActivationCodeResponse(BaseModel):
+    loan: LoanResponse
+    activation_code: str = Field(
+        min_length=4,
+        max_length=4,
+        description="4-digit funding activation code. Returned only once.",
+    )

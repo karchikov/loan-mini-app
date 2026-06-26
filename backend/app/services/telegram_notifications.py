@@ -150,6 +150,93 @@ def notify_loan_created(
     )
 
 
+def notify_loan_funding_pending(
+    loan: Loan,
+    activation_code: str,
+) -> None:
+    borrower_name = get_user_name(loan.borrower)
+    lender_name = get_user_name(loan.lender)
+
+    lender_text = (
+        f"Вы подтвердили готовность выдать займ #{loan.id}.\n\n"
+        f"Заемщик: {borrower_name}\n"
+        f"Сумма: {format_money(loan.amount)} {loan.currency}\n\n"
+        f"Код активации: <b>{activation_code}</b>\n\n"
+        f"Передайте код заемщику только после фактической передачи денег вне приложения.\n"
+        f"Займ станет активным только после того, как заемщик введет этот код в приложении."
+    )
+
+    borrower_text = (
+        f"Кредитор подтвердил готовность выдать займ #{loan.id}.\n\n"
+        f"Кредитор: {lender_name}\n"
+        f"Сумма: {format_money(loan.amount)} {loan.currency}\n\n"
+        f"После фактического получения денег вне приложения введите код активации в приложении."
+    )
+
+    send_telegram_message(
+        telegram_id=loan.lender.telegram_id,
+        text=lender_text,
+    )
+
+    if loan.borrower.telegram_id != loan.lender.telegram_id:
+        send_telegram_message(
+            telegram_id=loan.borrower.telegram_id,
+            text=borrower_text,
+        )
+
+
+def notify_funding_activation_code_regenerated(
+    loan: Loan,
+    activation_code: str,
+) -> None:
+    borrower_name = get_user_name(loan.borrower)
+
+    text = (
+        f"Сгенерирован новый код активации по займу #{loan.id}.\n\n"
+        f"Заемщик: {borrower_name}\n"
+        f"Сумма: {format_money(loan.amount)} {loan.currency}\n\n"
+        f"Новый код активации: <b>{activation_code}</b>\n\n"
+        f"Старый код больше не действует. Передайте новый код заемщику только после фактической передачи денег вне приложения."
+    )
+
+    send_telegram_message(
+        telegram_id=loan.lender.telegram_id,
+        text=text,
+    )
+
+
+def notify_loan_activated(
+    loan: Loan,
+) -> None:
+    borrower_name = get_user_name(loan.borrower)
+    lender_name = get_user_name(loan.lender)
+
+    lender_text = (
+        f"Займ #{loan.id} активирован.\n\n"
+        f"Заемщик: {borrower_name}\n"
+        f"Сумма: {format_money(loan.amount)} {loan.currency}\n\n"
+        f"Заемщик подтвердил получение денежных средств вне приложения."
+    )
+
+    borrower_text = (
+        f"Вы подтвердили получение денежных средств по займу #{loan.id}.\n\n"
+        f"Кредитор: {lender_name}\n"
+        f"Сумма: {format_money(loan.amount)} {loan.currency}\n\n"
+        f"Займ переведен в статус активного."
+    )
+
+    send_telegram_message(
+        telegram_id=loan.lender.telegram_id,
+        text=lender_text,
+    )
+
+    if loan.borrower.telegram_id != loan.lender.telegram_id:
+        send_telegram_message(
+            telegram_id=loan.borrower.telegram_id,
+            text=borrower_text,
+        )
+
+
 def notify_loan_confirmed(
     loan: Loan,
 ) -> None:

@@ -30,6 +30,7 @@ function App() {
   const [availableLenders, setAvailableLenders] = useState([]);
   const [summary, setSummary] = useState(null);
   const [history, setHistory] = useState([]);
+  const [fundingActivationCodes, setFundingActivationCodes] = useState({});
 
   const {
     user,
@@ -45,6 +46,8 @@ function App() {
     loadRepayments,
     create,
     confirm,
+    regenerateActivationCode,
+    activate,
     reject,
     markPaid,
     repay,
@@ -89,7 +92,44 @@ function App() {
   }
 
   async function handleConfirm(loanId) {
-    await confirm(loanId);
+    const result = await confirm(loanId);
+
+    if (result?.activation_code) {
+      setFundingActivationCodes((current) => ({
+        ...current,
+        [loanId]: result.activation_code,
+      }));
+    }
+
+    await reloadDashboard();
+  }
+
+  async function handleRegenerateActivationCode(loanId) {
+    const result = await regenerateActivationCode(loanId);
+
+    if (result?.activation_code) {
+      setFundingActivationCodes((current) => ({
+        ...current,
+        [loanId]: result.activation_code,
+      }));
+    }
+
+    await reloadDashboard();
+  }
+
+  async function handleActivateLoan(loanId, activationCode) {
+    await activate(loanId, activationCode);
+
+    setFundingActivationCodes((current) => {
+      const nextValue = {
+        ...current,
+      };
+
+      delete nextValue[loanId];
+
+      return nextValue;
+    });
+
     await reloadDashboard();
   }
 
@@ -142,6 +182,7 @@ function App() {
     setAvailableLenders([]);
     setSummary(null);
     setHistory([]);
+    setFundingActivationCodes({});
   }
 
   useEffect(() => {
@@ -234,8 +275,11 @@ function App() {
                   user={user}
                   isAdmin={isAdmin}
                   repayments={repayments}
+                  fundingActivationCodes={fundingActivationCodes}
                   onLoadRepayments={loadRepayments}
                   onConfirm={handleConfirm}
+                  onRegenerateActivationCode={handleRegenerateActivationCode}
+                  onActivateLoan={handleActivateLoan}
                   onReject={handleReject}
                   onMarkPaid={handleMarkPaid}
                   onRepay={handleRepay}
@@ -255,8 +299,11 @@ function App() {
                 user={user}
                 isAdmin={isAdmin}
                 repayments={repayments}
+                fundingActivationCodes={fundingActivationCodes}
                 onLoadRepayments={loadRepayments}
                 onConfirm={handleConfirm}
+                onRegenerateActivationCode={handleRegenerateActivationCode}
+                onActivateLoan={handleActivateLoan}
                 onReject={handleReject}
                 onMarkPaid={handleMarkPaid}
                 onRepay={handleRepay}

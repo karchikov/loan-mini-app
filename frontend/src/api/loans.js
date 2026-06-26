@@ -12,6 +12,22 @@ export async function confirmLoan(loanId) {
   return response.data;
 }
 
+export async function regenerateFundingActivationCode(loanId) {
+  const response = await client.post(
+    `/loans/${loanId}/activation-code/regenerate`
+  );
+
+  return response.data;
+}
+
+export async function activateLoan(loanId, activationCode) {
+  const response = await client.post(`/loans/${loanId}/activate`, {
+    activation_code: activationCode,
+  });
+
+  return response.data;
+}
+
 export async function rejectLoan(loanId) {
   const response = await client.post(`/loans/${loanId}/reject`);
 
