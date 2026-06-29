@@ -4,6 +4,7 @@ import { createLoan } from "../api/createLoan";
 
 import {
   activateLoan,
+  activateLoanByConfirmation,
   confirmLoan,
   confirmRepayment,
   getRepayments,
@@ -49,6 +50,10 @@ export function useLoans() {
     return activateLoan(id, activationCode);
   }
 
+  async function activateByConfirmation(id) {
+    return activateLoanByConfirmation(id);
+  }
+
   async function reject(id) {
     await rejectLoan(id);
   }
@@ -83,6 +88,7 @@ export function useLoans() {
     confirm,
     regenerateActivationCode,
     activate,
+    activateByConfirmation,
     reject,
     markPaid,
     repay,

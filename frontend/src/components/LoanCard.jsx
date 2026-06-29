@@ -8,9 +8,9 @@ import { getInterestLedger } from "../api/loans";
 import { formatDate, formatMoney } from "../utils/formatters";
 
 const LOAN_STATUS_LABELS = {
-  draft: "Ожидает подтверждения кредитора",
+  draft: "Ожидает действия кредитора",
   waiting_confirmation: "Ожидает подтверждения погашения",
-  funding_pending: "Ожидает подтверждения получения денег",
+  funding_pending: "Ожидает подтверждения заемщика",
   active: "Активен",
   partially_paid: "Частично погашен",
   paid: "Погашен",
@@ -169,6 +169,7 @@ function LoanCard({
   onConfirm,
   onRegenerateActivationCode,
   onActivateLoan,
+  onActivateLoanByConfirmation,
   onReject,
   onMarkPaid,
   onRepay,
@@ -189,6 +190,8 @@ function LoanCard({
   const [activationActionSuccess, setActivationActionSuccess] = useState("");
   const [activationProcessing, setActivationProcessing] = useState(false);
   const [regenerateProcessing, setRegenerateProcessing] = useState(false);
+  const [enhancedConfirmationVisible, setEnhancedConfirmationVisible] =
+    useState(false);
 
   const isBorrower = user.id === loan.borrower_id;
   const isLender = user.id === loan.lender_id;
@@ -387,6 +390,37 @@ function LoanCard({
         getApiErrorText(
           error,
           "Не удалось активировать займ. Проверьте код и попробуйте еще раз.",
+        ),
+      );
+    } finally {
+      setActivationProcessing(false);
+    }
+  }
+
+  async function handleActivateLoanByConfirmation() {
+    if (!onActivateLoanByConfirmation) {
+      return;
+    }
+
+    try {
+      setActivationActionError("");
+      setActivationActionSuccess("");
+      setActivationProcessing(true);
+
+      await onActivateLoanByConfirmation(loan.id);
+
+      setActivationCodeInput("");
+      setEnhancedConfirmationVisible(false);
+      setActivationActionSuccess(
+        "Получение денег подтверждено. Займ активирован.",
+      );
+    } catch (error) {
+      console.error(error);
+
+      setActivationActionError(
+        getApiErrorText(
+          error,
+          "Не удалось подтвердить получение денег. Попробуйте еще раз.",
         ),
       );
     } finally {
@@ -755,31 +789,56 @@ function LoanCard({
           {isFundingPending && !isExpiredLoan && (
             <div className="loan-info-panel funding-confirmation-panel">
               <h3 className="loan-info-title">
-                Подтверждение получения денег
+                Подтверждение фактической передачи
               </h3>
 
               {(isLender || isAdmin) && (
                 <div className="funding-confirmation-section">
                   <p className="funding-confirmation-title">
-                    Ожидаем подтверждения получения денег заемщиком.
+                    Готовность кредитора зафиксирована.
                   </p>
 
                   <p className="muted">
-                    Передайте код заемщику только после фактической передачи денег вне приложения.
+                    Приложение ожидает, когда заемщик подтвердит фактическое
+                    получение денежных средств вне приложения.
                   </p>
 
-                  {fundingActivationCode ? (
-                    <div className="activation-code-box">
-                      <span>Код активации</span>
-                      <strong>{fundingActivationCode}</strong>
-                    </div>
-                  ) : (
-                    <p className="muted">
-                      Старый код повторно не отображается. При необходимости сгенерируйте новый код.
-                    </p>
+                  <p className="legal-confirmation-text">
+                    Сервис фиксирует действия сторон и технические события.
+                    Передача денежных средств происходит вне приложения.
+                  </p>
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      setEnhancedConfirmationVisible((currentValue) =>
+                        !currentValue
+                      )
+                    }
+                  >
+                    {enhancedConfirmationVisible
+                      ? "Скрыть усиленное подтверждение"
+                      : "Усиленное подтверждение кодом"}
+                  </button>
+
+                  {enhancedConfirmationVisible && (
+                    <>
+                      {fundingActivationCode ? (
+                        <div className="activation-code-box">
+                          <span>Код подтверждения</span>
+                          <strong>{fundingActivationCode}</strong>
+                        </div>
+                      ) : (
+                        <p className="muted">
+                          Ранее созданный код повторно не отображается.
+                          При необходимости можно сгенерировать новый код.
+                        </p>
+                      )}
+                    </>
                   )}
 
-                  {canRegenerateActivationCode && (
+                  {enhancedConfirmationVisible && canRegenerateActivationCode && (
                     <button
                       type="button"
                       className="secondary-button"
@@ -797,28 +856,18 @@ function LoanCard({
               {(isBorrower || isAdmin) && (
                 <div className="funding-confirmation-section">
                   <p className="funding-confirmation-title">
-                    Кредитор подтвердил готовность выдать займ.
+                    Кредитор подтвердил готовность передать средства.
                   </p>
 
                   <p className="muted">
-                    После фактического получения денег вне приложения введите код активации.
+                    Нажмите кнопку только после фактического получения денежных
+                    средств вне приложения.
                   </p>
 
-                  <label className="form-field">
-                    <span>4-значный код</span>
-
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      value={activationCodeInput}
-                      onChange={handleActivationCodeInputChange}
-                      placeholder="0000"
-                    />
-                  </label>
-
                   <p className="legal-confirmation-text">
-                    Я подтверждаю, что получил денежные средства от кредитора вне приложения и согласен с условиями займа.
+                    Я подтверждаю, что фактическое получение денежных средств
+                    от кредитора произошло вне приложения, и прошу зафиксировать
+                    это действие в карточке займа.
                   </p>
 
                   {activationActionError && (
@@ -837,12 +886,61 @@ function LoanCard({
                     <button
                       type="button"
                       disabled={activationProcessing}
-                      onClick={handleActivateLoan}
+                      onClick={handleActivateLoanByConfirmation}
                     >
                       {activationProcessing
                         ? "Подтверждаем..."
-                        : "Подтвердить получение денег"}
+                        : "Подтвердить фактическое получение"}
                     </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      setEnhancedConfirmationVisible((currentValue) =>
+                        !currentValue
+                      )
+                    }
+                  >
+                    {enhancedConfirmationVisible
+                      ? "Скрыть ввод кода"
+                      : "Подтвердить по коду"}
+                  </button>
+
+                  {enhancedConfirmationVisible && (
+                    <>
+                      <label className="form-field">
+                        <span>4-значный код</span>
+
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          value={activationCodeInput}
+                          onChange={handleActivationCodeInputChange}
+                          placeholder="0000"
+                        />
+                      </label>
+
+                      <p className="muted">
+                        Кодовый вариант нужен только для усиленного сценария,
+                        когда стороны хотят дополнительно сверить действие.
+                      </p>
+
+                      {canActivateLoan && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled={activationProcessing}
+                          onClick={handleActivateLoan}
+                        >
+                          {activationProcessing
+                            ? "Проверяем код..."
+                            : "Подтвердить по коду"}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -973,7 +1071,7 @@ function LoanCard({
                 type="button"
                 onClick={() => onConfirm(loan.id)}
               >
-                Подтвердить готовность выдать займ
+                Подтвердить готовность передать вне приложения
               </button>
 
               <button

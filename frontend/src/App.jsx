@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Routes,
@@ -31,6 +31,9 @@ function App() {
   const [summary, setSummary] = useState(null);
   const [history, setHistory] = useState([]);
   const [fundingActivationCodes, setFundingActivationCodes] = useState({});
+  const [notifications, setNotifications] = useState([]);
+  const dashboardInitializedRef = useRef(false);
+  const previousLoanSnapshotsRef = useRef(new Map());
 
   const {
     user,
@@ -48,6 +51,7 @@ function App() {
     confirm,
     regenerateActivationCode,
     activate,
+    activateByConfirmation,
     reject,
     markPaid,
     repay,
@@ -58,13 +62,102 @@ function App() {
 
   const isAdmin = user?.role === "admin";
 
+  function pushNotification(message, type = "info") {
+    const id = `${Date.now()}-${Math.random()}`;
+
+    setNotifications((current) => [
+      ...current,
+      {
+        id,
+        message,
+        type,
+      },
+    ]);
+
+    window.setTimeout(() => {
+      setNotifications((current) =>
+        current.filter((item) => item.id !== id)
+      );
+    }, 5000);
+  }
+
+  function getLoanSnapshot(loan) {
+    return {
+      status: loan.status,
+      pendingRepaymentsCount: Number(
+        loan.pending_repayments_count || 0
+      ),
+    };
+  }
+
+  function getStatusNotification(loan) {
+    if (loan.status === "funding_pending") {
+      return "Кредитор подтвердил готовность. Ожидается подтверждение заемщика.";
+    }
+
+    if (loan.status === "active") {
+      return "Займ активирован. Подтверждение сторон зафиксировано.";
+    }
+
+    if (loan.status === "rejected") {
+      return "Заявка по займу отклонена.";
+    }
+
+    if (loan.status === "paid") {
+      return "Займ закрыт.";
+    }
+
+    if (loan.status === "expired") {
+      return "Срок заявки истек.";
+    }
+
+    return "";
+  }
+
+  function syncDashboardNotifications(nextLoans) {
+    const nextSnapshots = new Map();
+
+    nextLoans.forEach((loan) => {
+      const previousSnapshot = previousLoanSnapshotsRef.current.get(loan.id);
+      const nextSnapshot = getLoanSnapshot(loan);
+
+      nextSnapshots.set(loan.id, nextSnapshot);
+
+      if (!dashboardInitializedRef.current || !previousSnapshot) {
+        return;
+      }
+
+      if (previousSnapshot.status !== nextSnapshot.status) {
+        const message = getStatusNotification(loan);
+
+        if (message) {
+          pushNotification(message);
+        }
+      }
+
+      if (
+        nextSnapshot.pendingRepaymentsCount >
+        previousSnapshot.pendingRepaymentsCount
+      ) {
+        pushNotification(
+          "Есть платеж, ожидающий подтверждения.",
+        );
+      }
+    });
+
+    previousLoanSnapshotsRef.current = nextSnapshots;
+    dashboardInitializedRef.current = true;
+  }
+
   function applyDashboardData(dashboard) {
     const dashboardUser = dashboard.user || null;
+    const dashboardLoans = dashboard.loans || [];
 
     setUser(dashboardUser);
-    setLoans(dashboard.loans || []);
+    setLoans(dashboardLoans);
     setSummary(dashboard.summary || null);
     setHistory(dashboard.history || []);
+    syncDashboardNotifications(dashboardLoans);
 
     if (!dashboardUser) {
       setAvailableLenders([]);
@@ -133,6 +226,22 @@ function App() {
     await reloadDashboard();
   }
 
+  async function handleActivateLoanByConfirmation(loanId) {
+    await activateByConfirmation(loanId);
+
+    setFundingActivationCodes((current) => {
+      const nextValue = {
+        ...current,
+      };
+
+      delete nextValue[loanId];
+
+      return nextValue;
+    });
+
+    await reloadDashboard();
+  }
+
   async function handleReject(loanId) {
     await reject(loanId);
     await reloadDashboard();
@@ -183,6 +292,9 @@ function App() {
     setSummary(null);
     setHistory([]);
     setFundingActivationCodes({});
+    setNotifications([]);
+    dashboardInitializedRef.current = false;
+    previousLoanSnapshotsRef.current = new Map();
   }
 
   useEffect(() => {
@@ -312,6 +424,19 @@ function App() {
         </div>
       )}
 
+      {notifications.length > 0 && (
+        <div className="notification-stack">
+          {notifications.map((notification) => (
+            <div
+              className={`app-notification ${notification.type}`}
+              key={notification.id}
+            >
+              {notification.message}
+            </div>
+          ))}
+        </div>
+      )}
+
       {user && (
         <Routes>
           <Route
@@ -343,6 +468,7 @@ function App() {
                   onConfirm={handleConfirm}
                   onRegenerateActivationCode={handleRegenerateActivationCode}
                   onActivateLoan={handleActivateLoan}
+                  onActivateLoanByConfirmation={handleActivateLoanByConfirmation}
                   onReject={handleReject}
                   onMarkPaid={handleMarkPaid}
                   onRepay={handleRepay}
@@ -367,6 +493,7 @@ function App() {
                 onConfirm={handleConfirm}
                 onRegenerateActivationCode={handleRegenerateActivationCode}
                 onActivateLoan={handleActivateLoan}
+                onActivateLoanByConfirmation={handleActivateLoanByConfirmation}
                 onReject={handleReject}
                 onMarkPaid={handleMarkPaid}
                 onRepay={handleRepay}

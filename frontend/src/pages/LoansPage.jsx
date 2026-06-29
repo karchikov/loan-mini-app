@@ -62,6 +62,7 @@ function LoansPage({
   onConfirm,
   onRegenerateActivationCode,
   onActivateLoan,
+  onActivateLoanByConfirmation,
   onReject,
   onMarkPaid,
   onRepay,
@@ -122,6 +123,7 @@ function LoansPage({
           onConfirm={onConfirm}
           onRegenerateActivationCode={onRegenerateActivationCode}
           onActivateLoan={onActivateLoan}
+          onActivateLoanByConfirmation={onActivateLoanByConfirmation}
           onReject={onReject}
           onMarkPaid={onMarkPaid}
           onRepay={onRepay}

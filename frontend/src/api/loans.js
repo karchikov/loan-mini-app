@@ -28,6 +28,12 @@ export async function activateLoan(loanId, activationCode) {
   return response.data;
 }
 
+export async function activateLoanByConfirmation(loanId) {
+  const response = await client.post(`/loans/${loanId}/activate/simple`);
+
+  return response.data;
+}
+
 export async function rejectLoan(loanId) {
   const response = await client.post(`/loans/${loanId}/reject`);
 

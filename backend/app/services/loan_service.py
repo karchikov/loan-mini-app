@@ -605,6 +605,10 @@ def confirm_loan(
         new_status=LoanStatus.FUNDING_PENDING,
         metadata={
             "lender_confirmed_at": format_event_datetime(now_utc),
+            "confirmation_text": (
+                "Кредитор подтвердил готовность передать денежные средства "
+                "заемщику вне приложения."
+            ),
         },
         ip_address=ip_address,
         user_agent=user_agent,
@@ -734,10 +738,74 @@ def regenerate_funding_activation_code(
     )
 
 
-def activate_loan(
+def complete_funding_activation(
+    db: Session,
+    loan: Loan,
+    current_user: User,
+    confirmation_method: str,
+    activation_method: str,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+) -> Loan:
+    old_status = loan.status
+    now_utc = datetime.now(timezone.utc)
+
+    loan.status = LoanStatus.ACTIVE
+    loan.borrower_received_at = now_utc
+    loan.borrower_received_by_user_id = current_user.id
+    loan.funding_activation_code_hash = None
+    loan.updated_at = now_utc
+    loan.remaining_balance = calculate_remaining_balance(
+        db=db,
+        loan=loan,
+    )
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="borrower_money_received_confirmed",
+        old_status=old_status,
+        new_status=LoanStatus.ACTIVE,
+        metadata={
+            "borrower_received_at": format_event_datetime(now_utc),
+            "confirmation_method": confirmation_method,
+            "confirmation_text": (
+                "Заемщик подтвердил фактическое получение денежных средств "
+                "от кредитора вне приложения."
+            ),
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="loan_activated",
+        old_status=old_status,
+        new_status=LoanStatus.ACTIVE,
+        metadata={
+            "activated_at": format_event_datetime(now_utc),
+            "activation_method": activation_method,
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+    db.commit()
+
+    notify_loan_activated(
+        loan=loan,
+    )
+
+    return loan
+
+
+def get_funding_pending_loan_for_activation(
     db: Session,
     loan_id: int,
-    activation_code: str,
     current_user: User,
     ip_address: str | None = None,
     user_agent: str | None = None,
@@ -791,6 +859,51 @@ def activate_loan(
             detail="Loan request expired and cannot be activated",
         )
 
+    return loan
+
+
+def activate_loan_by_borrower_confirmation(
+    db: Session,
+    loan_id: int,
+    current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+) -> Loan:
+    loan = get_funding_pending_loan_for_activation(
+        db=db,
+        loan_id=loan_id,
+        current_user=current_user,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+    return complete_funding_activation(
+        db=db,
+        loan=loan,
+        current_user=current_user,
+        confirmation_method="simple_button",
+        activation_method="borrower_confirmation_without_code",
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+
+def activate_loan(
+    db: Session,
+    loan_id: int,
+    activation_code: str,
+    current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+) -> Loan:
+    loan = get_funding_pending_loan_for_activation(
+        db=db,
+        loan_id=loan_id,
+        current_user=current_user,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
     if not loan.funding_activation_code_hash:
         raise HTTPException(
             status_code=400,
@@ -830,56 +943,15 @@ def activate_loan(
             detail=f"Invalid activation code. Attempts left: {attempts_left}",
         )
 
-    old_status = loan.status
-    now_utc = datetime.now(timezone.utc)
-
-    loan.status = LoanStatus.ACTIVE
-    loan.borrower_received_at = now_utc
-    loan.borrower_received_by_user_id = current_user.id
-    loan.funding_activation_code_hash = None
-    loan.updated_at = now_utc
-    loan.remaining_balance = calculate_remaining_balance(
+    return complete_funding_activation(
         db=db,
         loan=loan,
-    )
-
-    record_loan_event(
-        db=db,
-        loan=loan,
-        actor=current_user,
-        event_type="borrower_money_received_confirmed",
-        old_status=old_status,
-        new_status=LoanStatus.ACTIVE,
-        metadata={
-            "borrower_received_at": format_event_datetime(now_utc),
-            "confirmation_method": "funding_activation_code",
-        },
+        current_user=current_user,
+        confirmation_method="funding_activation_code",
+        activation_method="borrower_confirmation_with_code",
         ip_address=ip_address,
         user_agent=user_agent,
     )
-
-    record_loan_event(
-        db=db,
-        loan=loan,
-        actor=current_user,
-        event_type="loan_activated",
-        old_status=old_status,
-        new_status=LoanStatus.ACTIVE,
-        metadata={
-            "activated_at": format_event_datetime(now_utc),
-            "activation_method": "borrower_confirmation",
-        },
-        ip_address=ip_address,
-        user_agent=user_agent,
-    )
-
-    db.commit()
-
-    notify_loan_activated(
-        loan=loan,
-    )
-
-    return loan
 
 
 def reject_loan(

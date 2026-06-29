@@ -15,6 +15,7 @@ from app.schemas.loan import (
 )
 from app.services.loan_service import (
     activate_loan,
+    activate_loan_by_borrower_confirmation,
     confirm_loan,
     confirm_repayment,
     create_loan,
@@ -184,6 +185,25 @@ def activate_existing_loan(
         db=db,
         loan_id=loan_id,
         activation_code=activation_data.activation_code,
+        current_user=current_user,
+        ip_address=get_request_ip_address(request),
+        user_agent=get_request_user_agent(request),
+    )
+
+
+@router.post(
+    "/{loan_id}/activate/simple",
+    response_model=LoanResponse,
+)
+def activate_existing_loan_by_borrower_confirmation(
+    loan_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return activate_loan_by_borrower_confirmation(
+        db=db,
+        loan_id=loan_id,
         current_user=current_user,
         ip_address=get_request_ip_address(request),
         user_agent=get_request_user_agent(request),
