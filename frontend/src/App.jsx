@@ -234,6 +234,69 @@ function App() {
     initialize();
   }, []);
 
+  useEffect(() => {
+    if (!user) {
+      return undefined;
+    }
+
+    let refreshInProgress = false;
+
+    async function refreshDashboardSafely() {
+      if (refreshInProgress) {
+        return;
+      }
+
+      try {
+        refreshInProgress = true;
+
+        await reloadDashboard();
+      } catch (error) {
+        console.error(error);
+      } finally {
+        refreshInProgress = false;
+      }
+    }
+
+    function handleWindowFocus() {
+      refreshDashboardSafely();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        refreshDashboardSafely();
+      }
+    }
+
+    window.addEventListener(
+      "focus",
+      handleWindowFocus,
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
+
+    const intervalId = window.setInterval(
+      refreshDashboardSafely,
+      15000,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "focus",
+        handleWindowFocus,
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+
+      window.clearInterval(intervalId);
+    };
+  }, [user?.id]);
+
   if (appLoading) {
     return <LoadingScreen />;
   }

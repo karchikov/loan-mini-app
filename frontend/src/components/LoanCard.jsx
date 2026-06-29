@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import InterestLedgerHistory from "./InterestLedgerHistory";
 import RepaymentHistory from "./RepaymentHistory";
@@ -287,6 +287,26 @@ function LoanCard({
     loan.status === "waiting_confirmation"
       ? "Подтвердить закрытие займа"
       : "Отметить как погашенный";
+
+  useEffect(() => {
+    if (
+      isFundingPending &&
+      !isExpiredLoan &&
+      (
+        isBorrower ||
+        isLender ||
+        isAdmin
+      )
+    ) {
+      setIsExpanded(true);
+    }
+  }, [
+    isFundingPending,
+    isExpiredLoan,
+    isBorrower,
+    isLender,
+    isAdmin,
+  ]);
 
   function toggleExpanded() {
     setIsExpanded((currentValue) => !currentValue);
