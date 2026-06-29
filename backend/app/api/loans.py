@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -35,12 +35,42 @@ router = APIRouter(
 )
 
 
+def get_request_ip_address(request: Request) -> str | None:
+    forwarded_for = request.headers.get("x-forwarded-for")
+
+    if forwarded_for:
+        first_ip_address = forwarded_for.split(",")[0].strip()
+
+        if first_ip_address:
+            return first_ip_address
+
+    real_ip_address = request.headers.get("x-real-ip")
+
+    if real_ip_address:
+        return real_ip_address.strip()
+
+    if request.client:
+        return request.client.host
+
+    return None
+
+
+def get_request_user_agent(request: Request) -> str | None:
+    user_agent = request.headers.get("user-agent")
+
+    if user_agent:
+        return user_agent
+
+    return None
+
+
 @router.post(
     "",
     response_model=LoanResponse,
 )
 def create_new_loan(
     loan_data: LoanCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -48,6 +78,8 @@ def create_new_loan(
         db=db,
         loan_data=loan_data,
         current_user=current_user,
+        ip_address=get_request_ip_address(request),
+        user_agent=get_request_user_agent(request),
     )
 
 
@@ -95,6 +127,7 @@ def get_loan(
 )
 def confirm_existing_loan(
     loan_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -102,6 +135,8 @@ def confirm_existing_loan(
         db=db,
         loan_id=loan_id,
         current_user=current_user,
+        ip_address=get_request_ip_address(request),
+        user_agent=get_request_user_agent(request),
     )
 
     return {
@@ -116,6 +151,7 @@ def confirm_existing_loan(
 )
 def regenerate_existing_loan_activation_code(
     loan_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -123,6 +159,8 @@ def regenerate_existing_loan_activation_code(
         db=db,
         loan_id=loan_id,
         current_user=current_user,
+        ip_address=get_request_ip_address(request),
+        user_agent=get_request_user_agent(request),
     )
 
     return {
@@ -138,6 +176,7 @@ def regenerate_existing_loan_activation_code(
 def activate_existing_loan(
     loan_id: int,
     activation_data: LoanActivationRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -146,6 +185,8 @@ def activate_existing_loan(
         loan_id=loan_id,
         activation_code=activation_data.activation_code,
         current_user=current_user,
+        ip_address=get_request_ip_address(request),
+        user_agent=get_request_user_agent(request),
     )
 
 
@@ -155,6 +196,7 @@ def activate_existing_loan(
 )
 def reject_existing_loan(
     loan_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -162,6 +204,8 @@ def reject_existing_loan(
         db=db,
         loan_id=loan_id,
         current_user=current_user,
+        ip_address=get_request_ip_address(request),
+        user_agent=get_request_user_agent(request),
     )
 
 
@@ -171,6 +215,7 @@ def reject_existing_loan(
 )
 def mark_paid_existing_loan(
     loan_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -178,6 +223,8 @@ def mark_paid_existing_loan(
         db=db,
         loan_id=loan_id,
         current_user=current_user,
+        ip_address=get_request_ip_address(request),
+        user_agent=get_request_user_agent(request),
     )
 
 
@@ -188,6 +235,7 @@ def mark_paid_existing_loan(
 def repay_loan(
     loan_id: int,
     repayment_data: RepaymentCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -196,6 +244,8 @@ def repay_loan(
         loan_id=loan_id,
         repayment_data=repayment_data,
         current_user=current_user,
+        ip_address=get_request_ip_address(request),
+        user_agent=get_request_user_agent(request),
     )
 
 
@@ -206,6 +256,7 @@ def repay_loan(
 def confirm_existing_repayment(
     loan_id: int,
     repayment_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -214,6 +265,8 @@ def confirm_existing_repayment(
         loan_id=loan_id,
         repayment_id=repayment_id,
         current_user=current_user,
+        ip_address=get_request_ip_address(request),
+        user_agent=get_request_user_agent(request),
     )
 
 
@@ -224,6 +277,7 @@ def confirm_existing_repayment(
 def reject_existing_repayment(
     loan_id: int,
     repayment_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -232,6 +286,8 @@ def reject_existing_repayment(
         loan_id=loan_id,
         repayment_id=repayment_id,
         current_user=current_user,
+        ip_address=get_request_ip_address(request),
+        user_agent=get_request_user_agent(request),
     )
 
 

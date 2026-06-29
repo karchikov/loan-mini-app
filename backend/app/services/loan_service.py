@@ -20,6 +20,7 @@ from app.services.loan_balance_service import (
     calculate_remaining_balance,
     normalize_money,
 )
+from app.services.loan_event_log_service import record_loan_event
 from app.services.telegram_notifications import (
     notify_funding_activation_code_regenerated,
     notify_loan_activated,
@@ -73,6 +74,26 @@ def get_loan_due_date_utc_date(loan: Loan):
     return get_due_date_utc_date(loan.due_date)
 
 
+def format_event_datetime(value):
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+
+        return value.astimezone(timezone.utc).isoformat()
+
+    if isinstance(value, date):
+        return value.isoformat()
+
+    return str(value)
+
+
+def format_event_decimal(value) -> str:
+    return str(normalize_money(value))
+
+
 def validate_loan_due_date_not_in_past(due_date):
     due_date_utc_date = get_due_date_utc_date(due_date)
 
@@ -108,16 +129,37 @@ def is_loan_request_expired(loan: Loan) -> bool:
 def expire_loan_request_if_needed(
     db: Session,
     loan: Loan,
+    actor: User | None = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> bool:
     if not is_loan_request_expired(loan):
         return False
 
+    old_status = loan.status
+    now_utc = datetime.now(timezone.utc)
+
     loan.status = LoanStatus.EXPIRED
-    loan.updated_at = datetime.now(timezone.utc)
+    loan.updated_at = now_utc
     loan.funding_activation_code_hash = None
     loan.remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
+    )
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=actor,
+        event_type="loan_expired",
+        old_status=old_status,
+        new_status=LoanStatus.EXPIRED,
+        metadata={
+            "due_date": format_event_datetime(loan.due_date),
+            "expired_at": format_event_datetime(now_utc),
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
 
     db.commit()
@@ -132,6 +174,9 @@ def is_draft_loan_expired(loan: Loan) -> bool:
 def expire_draft_loan_if_needed(
     db: Session,
     loan: Loan,
+    actor: User | None = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> bool:
     if loan.status != LoanStatus.DRAFT:
         return False
@@ -139,6 +184,9 @@ def expire_draft_loan_if_needed(
     return expire_loan_request_if_needed(
         db=db,
         loan=loan,
+        actor=actor,
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
 
 
@@ -327,6 +375,8 @@ def create_loan(
     db: Session,
     loan_data: LoanCreate,
     current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> Loan:
     validate_loan_due_date_not_in_past(loan_data.due_date)
 
@@ -377,6 +427,25 @@ def create_loan(
     loan.lender = lender
     loan.borrower = current_user
     loan.remaining_balance = loan.amount
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="loan_created",
+        old_status=None,
+        new_status=LoanStatus.DRAFT,
+        metadata={
+            "amount": format_event_decimal(loan.amount),
+            "annual_interest_rate": format_event_decimal(loan.annual_interest_rate),
+            "currency": loan.currency,
+            "due_date": format_event_datetime(loan.due_date),
+            "borrower_id": loan.borrower_id,
+            "lender_id": loan.lender_id,
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
 
     db.commit()
 
@@ -458,6 +527,8 @@ def confirm_loan(
     db: Session,
     loan_id: int,
     current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> FundingActivationCodeResult:
     loan = lock_loan_by_id(
         db=db,
@@ -499,12 +570,16 @@ def confirm_loan(
     if expire_draft_loan_if_needed(
         db=db,
         loan=loan,
+        actor=current_user,
+        ip_address=ip_address,
+        user_agent=user_agent,
     ):
         raise HTTPException(
             status_code=400,
             detail="Loan request expired and cannot be confirmed",
         )
 
+    old_status = loan.status
     now_utc = datetime.now(timezone.utc)
 
     loan.status = LoanStatus.FUNDING_PENDING
@@ -519,6 +594,39 @@ def confirm_loan(
     loan.remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
+    )
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="lender_funding_confirmed",
+        old_status=old_status,
+        new_status=LoanStatus.FUNDING_PENDING,
+        metadata={
+            "lender_confirmed_at": format_event_datetime(now_utc),
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="funding_activation_code_generated",
+        old_status=LoanStatus.FUNDING_PENDING,
+        new_status=LoanStatus.FUNDING_PENDING,
+        metadata={
+            "code_length": FUNDING_ACTIVATION_CODE_LENGTH,
+            "generated_at": format_event_datetime(
+                loan.funding_activation_code_generated_at
+            ),
+            "generated_by_user_id": current_user.id,
+            "attempts_reset": True,
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
 
     db.commit()
@@ -538,6 +646,8 @@ def regenerate_funding_activation_code(
     db: Session,
     loan_id: int,
     current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> FundingActivationCodeResult:
     loan = lock_loan_by_id(
         db=db,
@@ -573,6 +683,9 @@ def regenerate_funding_activation_code(
     if expire_loan_request_if_needed(
         db=db,
         loan=loan,
+        actor=current_user,
+        ip_address=ip_address,
+        user_agent=user_agent,
     ):
         raise HTTPException(
             status_code=400,
@@ -587,6 +700,25 @@ def regenerate_funding_activation_code(
     loan.remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
+    )
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="funding_activation_code_regenerated",
+        old_status=LoanStatus.FUNDING_PENDING,
+        new_status=LoanStatus.FUNDING_PENDING,
+        metadata={
+            "code_length": FUNDING_ACTIVATION_CODE_LENGTH,
+            "generated_at": format_event_datetime(
+                loan.funding_activation_code_generated_at
+            ),
+            "generated_by_user_id": current_user.id,
+            "attempts_reset": True,
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
 
     db.commit()
@@ -607,6 +739,8 @@ def activate_loan(
     loan_id: int,
     activation_code: str,
     current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> Loan:
     loan = lock_loan_by_id(
         db=db,
@@ -648,6 +782,9 @@ def activate_loan(
     if expire_loan_request_if_needed(
         db=db,
         loan=loan,
+        actor=current_user,
+        ip_address=ip_address,
+        user_agent=user_agent,
     ):
         raise HTTPException(
             status_code=400,
@@ -693,6 +830,7 @@ def activate_loan(
             detail=f"Invalid activation code. Attempts left: {attempts_left}",
         )
 
+    old_status = loan.status
     now_utc = datetime.now(timezone.utc)
 
     loan.status = LoanStatus.ACTIVE
@@ -703,6 +841,36 @@ def activate_loan(
     loan.remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
+    )
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="borrower_money_received_confirmed",
+        old_status=old_status,
+        new_status=LoanStatus.ACTIVE,
+        metadata={
+            "borrower_received_at": format_event_datetime(now_utc),
+            "confirmation_method": "funding_activation_code",
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="loan_activated",
+        old_status=old_status,
+        new_status=LoanStatus.ACTIVE,
+        metadata={
+            "activated_at": format_event_datetime(now_utc),
+            "activation_method": "borrower_confirmation",
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
 
     db.commit()
@@ -718,6 +886,8 @@ def reject_loan(
     db: Session,
     loan_id: int,
     current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> Loan:
     loan = get_loan_by_id(
         db=db,
@@ -755,16 +925,37 @@ def reject_loan(
     if expire_draft_loan_if_needed(
         db=db,
         loan=loan,
+        actor=current_user,
+        ip_address=ip_address,
+        user_agent=user_agent,
     ):
         raise HTTPException(
             status_code=400,
             detail="Loan request expired and cannot be rejected",
         )
 
+    old_status = loan.status
+    now_utc = datetime.now(timezone.utc)
+
     loan.status = LoanStatus.REJECTED
+    loan.updated_at = now_utc
     loan.remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
+    )
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="loan_rejected",
+        old_status=old_status,
+        new_status=LoanStatus.REJECTED,
+        metadata={
+            "rejected_at": format_event_datetime(now_utc),
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
 
     db.commit()
@@ -780,6 +971,8 @@ def mark_loan_as_paid(
     db: Session,
     loan_id: int,
     current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> Loan:
     loan = lock_loan_by_id(
         db=db,
@@ -834,10 +1027,14 @@ def mark_loan_as_paid(
             detail="Loan has pending repayments",
         )
 
+    old_status = loan.status
+
     remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
     )
+
+    repayment = None
 
     if remaining_balance > 0:
         allocation = allocate_repayment_interest_first(
@@ -858,10 +1055,30 @@ def mark_loan_as_paid(
         )
 
         db.add(repayment)
+        db.flush()
+
+    now_utc = datetime.now(timezone.utc)
 
     loan.status = LoanStatus.PAID
-    loan.updated_at = datetime.now(timezone.utc)
+    loan.updated_at = now_utc
     loan.remaining_balance = Decimal("0.00")
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="loan_paid",
+        old_status=old_status,
+        new_status=LoanStatus.PAID,
+        metadata={
+            "paid_at": format_event_datetime(now_utc),
+            "remaining_balance_before": format_event_decimal(remaining_balance),
+            "repayment_id": repayment.id if repayment else None,
+            "source": "mark_loan_as_paid",
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
 
     db.commit()
 
@@ -877,6 +1094,8 @@ def create_repayment(
     loan_id: int,
     repayment_data: RepaymentCreate,
     current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ):
     loan = lock_loan_by_id(
         db=db,
@@ -962,6 +1181,25 @@ def create_repayment(
     loan.updated_at = datetime.now(timezone.utc)
     loan.remaining_balance = remaining_balance
 
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="repayment_submitted",
+        old_status=loan.status,
+        new_status=loan.status,
+        metadata={
+            "repayment_id": repayment.id,
+            "amount": format_event_decimal(payment_amount),
+            "remaining_balance_before": format_event_decimal(remaining_balance),
+            "pending_repayments_total_before": format_event_decimal(
+                pending_repayments_total
+            ),
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
     db.commit()
 
     notify_repayment_submitted(
@@ -978,6 +1216,8 @@ def confirm_repayment(
     loan_id: int,
     repayment_id: int,
     current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> Loan:
     loan = lock_loan_by_id(
         db=db,
@@ -1038,6 +1278,8 @@ def confirm_repayment(
             detail="Only pending repayment can be confirmed",
         )
 
+    old_status = loan.status
+
     remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
@@ -1077,6 +1319,43 @@ def confirm_repayment(
 
     loan.updated_at = datetime.now(timezone.utc)
 
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="repayment_confirmed",
+        old_status=old_status,
+        new_status=loan.status,
+        metadata={
+            "repayment_id": repayment.id,
+            "amount": format_event_decimal(repayment.amount),
+            "interest_amount": format_event_decimal(repayment.interest_amount),
+            "principal_amount": format_event_decimal(repayment.principal_amount),
+            "remaining_balance_before": format_event_decimal(remaining_balance),
+            "remaining_balance_after": format_event_decimal(loan.remaining_balance),
+            "confirmed_at": format_event_datetime(repayment.confirmed_at),
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+    if loan.status == LoanStatus.PAID:
+        record_loan_event(
+            db=db,
+            loan=loan,
+            actor=current_user,
+            event_type="loan_paid",
+            old_status=old_status,
+            new_status=LoanStatus.PAID,
+            metadata={
+                "paid_at": format_event_datetime(loan.updated_at),
+                "repayment_id": repayment.id,
+                "source": "repayment_confirmation",
+            },
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+
     db.commit()
 
     notify_repayment_confirmed(
@@ -1093,6 +1372,8 @@ def reject_repayment(
     loan_id: int,
     repayment_id: int,
     current_user: User,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> Loan:
     loan = lock_loan_by_id(
         db=db,
@@ -1161,6 +1442,22 @@ def reject_repayment(
     loan.remaining_balance = calculate_remaining_balance(
         db=db,
         loan=loan,
+    )
+
+    record_loan_event(
+        db=db,
+        loan=loan,
+        actor=current_user,
+        event_type="repayment_rejected",
+        old_status=loan.status,
+        new_status=loan.status,
+        metadata={
+            "repayment_id": repayment.id,
+            "amount": format_event_decimal(repayment.amount),
+            "rejected_at": format_event_datetime(repayment.rejected_at),
+        },
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
 
     db.commit()
