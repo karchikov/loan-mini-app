@@ -8,7 +8,11 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.loan import Loan, LoanStatus
 from app.models.loan_reminder_log import LoanReminderLog
 from app.services.loan_balance_service import calculate_remaining_balance
-from app.services.telegram_notifications import format_money, send_telegram_message
+from app.services.telegram_notifications import (
+    build_open_loan_keyboard,
+    format_money,
+    send_telegram_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -110,15 +114,21 @@ def send_loan_reminder(
     loan: Loan,
     text: str,
 ) -> None:
+    reply_markup = build_open_loan_keyboard(
+        loan_id=loan.id,
+    )
+
     send_telegram_message(
         telegram_id=loan.borrower.telegram_id,
         text=text,
+        reply_markup=reply_markup,
     )
 
     if loan.lender.telegram_id != loan.borrower.telegram_id:
         send_telegram_message(
             telegram_id=loan.lender.telegram_id,
             text=text,
+            reply_markup=reply_markup,
         )
 
 

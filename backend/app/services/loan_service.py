@@ -25,6 +25,7 @@ from app.services.telegram_notifications import (
     notify_funding_activation_code_regenerated,
     notify_loan_activated,
     notify_loan_created,
+    notify_loan_expired,
     notify_loan_funding_pending,
     notify_loan_paid,
     notify_loan_rejected,
@@ -163,6 +164,11 @@ def expire_loan_request_if_needed(
     )
 
     db.commit()
+
+    notify_loan_expired(
+        loan=loan,
+        previous_status=getattr(old_status, "value", str(old_status)),
+    )
 
     return True
 
