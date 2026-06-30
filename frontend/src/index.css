@@ -743,6 +743,10 @@ input::placeholder {
 }
 
 .app-notification {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
   padding: 12px 14px;
   border-radius: 14px;
   background: #eff6ff;
@@ -752,6 +756,24 @@ input::placeholder {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.35;
+}
+
+.app-notification span {
+  min-width: 0;
+}
+
+.notification-close-button {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1;
 }
 
 .app-notification.success {

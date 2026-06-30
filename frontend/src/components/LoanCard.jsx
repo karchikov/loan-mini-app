@@ -293,8 +293,11 @@ function LoanCard({
 
   useEffect(() => {
     if (
-      isFundingPending &&
       !isExpiredLoan &&
+      (
+        isFundingPending ||
+        hasPendingRepayments
+      ) &&
       (
         isBorrower ||
         isLender ||
@@ -305,6 +308,7 @@ function LoanCard({
     }
   }, [
     isFundingPending,
+    hasPendingRepayments,
     isExpiredLoan,
     isBorrower,
     isLender,
