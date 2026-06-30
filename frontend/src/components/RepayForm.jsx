@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 function RepayForm({ onRepay }) {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const amountInputRef = useRef(null);
 
   async function handleSubmit() {
     setError("");
@@ -18,6 +19,7 @@ function RepayForm({ onRepay }) {
     }
 
     try {
+      amountInputRef.current?.blur();
       setLoading(true);
 
       await onRepay(value);
@@ -41,7 +43,9 @@ function RepayForm({ onRepay }) {
   return (
     <div className="repay-box">
       <input
+        ref={amountInputRef}
         type="number"
+        inputMode="decimal"
         placeholder="Сумма платежа"
         value={amount}
         disabled={loading}

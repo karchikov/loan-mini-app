@@ -2,6 +2,10 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 :root {
   --bg: #f4f6f8;
   --card: #ffffff;
@@ -676,13 +680,15 @@ button:disabled {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
   margin-bottom: 10px;
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 1.2;
   background: var(--card);
   color: var(--text);
 }
@@ -734,12 +740,16 @@ input::placeholder {
 }
 
 .notification-stack {
-  position: sticky;
-  top: 12px;
-  z-index: 20;
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: 16px;
+  right: 16px;
+  z-index: 1000;
   display: grid;
   gap: 8px;
-  margin-bottom: 16px;
+  max-width: 668px;
+  margin: 0 auto;
+  pointer-events: none;
 }
 
 .app-notification {
@@ -756,6 +766,7 @@ input::placeholder {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.35;
+  pointer-events: auto;
 }
 
 .app-notification span {
