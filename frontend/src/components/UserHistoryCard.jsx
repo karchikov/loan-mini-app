@@ -1,6 +1,8 @@
 import { formatDate, formatMoney } from "../utils/formatters";
 
 function UserHistoryCard({
+  title = "Последние события",
+  emptyText = "Событий пока нет",
   history,
 }) {
   if (!history) {
@@ -10,12 +12,12 @@ function UserHistoryCard({
   return (
     <div className="card">
       <h2 className="page-title">
-        История операций
+        {title}
       </h2>
 
       {history.length === 0 && (
         <p className="muted">
-          Операций пока нет
+          {emptyText}
         </p>
       )}
 

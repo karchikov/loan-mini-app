@@ -277,13 +277,11 @@ function CreateLoanForm({
     <div className="card create-loan-card">
       <div className="form-header">
         <h2>
-          Создать заявку на займ
+          Создать заявку
         </h2>
 
         <p>
-          Выберите кредитора из вашей Telegram-сети, укажите сумму,
-          валюту и срок возврата. Приложение фиксирует заявку, а
-          передача денег происходит вне приложения.
+          Укажите кредитора, валюту, сумму, срок возврата и примечание.
         </p>
       </div>
 
@@ -450,7 +448,7 @@ function CreateLoanForm({
         </label>
 
         <label className="form-field">
-          <span>Описание</span>
+          <span>Примечание</span>
 
           <input
             type="text"

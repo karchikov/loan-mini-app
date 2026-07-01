@@ -8,31 +8,28 @@ function UserSummaryCard({
   }
 
   return (
-    <div className="card">
-      <h2 className="page-title">
-        Карточка пользователя
-      </h2>
+    <section className="home-hero">
+      <h1>
+        Учет личных договоренностей
+      </h1>
 
       <p>
-        <strong>Мои долги:</strong>{" "}
-        {formatMoney(summary.my_debts)}
+        Приложение фиксирует заявки и действия сторон.
+        Деньги передаются вне приложения.
       </p>
 
-      <p>
-        <strong>Мне должны:</strong>{" "}
-        {formatMoney(summary.owed_to_me)}
-      </p>
+      <div className="home-summary-grid">
+        <div className="home-summary-box">
+          <span>Мне должны</span>
+          <strong>{formatMoney(summary.owed_to_me)}</strong>
+        </div>
 
-      <p>
-        <strong>Баланс:</strong>{" "}
-        {formatMoney(summary.balance)}
-      </p>
-
-      <p>
-        <strong>Активных займов:</strong>{" "}
-        {summary.active_loans_count}
-      </p>
-    </div>
+        <div className="home-summary-box">
+          <span>Мои долги</span>
+          <strong>{formatMoney(summary.my_debts)}</strong>
+        </div>
+      </div>
+    </section>
   );
 }
 

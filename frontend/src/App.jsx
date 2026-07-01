@@ -9,12 +9,11 @@ import {
 import MainLayout from "./layouts/MainLayout";
 
 import HistoryPage from "./pages/HistoryPage";
+import HomePage from "./pages/HomePage";
 import LoansPage from "./pages/LoansPage";
+import ProfilePage from "./pages/ProfilePage";
 
-import CreateLoanForm from "./components/CreateLoanForm";
-import InviteUserButton from "./components/InviteUserButton";
 import LoadingScreen from "./components/LoadingScreen";
-import UserSummaryCard from "./components/UserSummaryCard";
 
 import { loadDashboard } from "./api/dashboard";
 
@@ -661,7 +660,6 @@ function App() {
   return (
     <MainLayout
       user={user}
-      onLogout={handleLogout}
     >
       {globalError && (
         <div className="global-error">
@@ -699,45 +697,79 @@ function App() {
           <Route
             path="/"
             element={
-              <>
-                <UserSummaryCard
-                  summary={summary}
-                />
-
-                <InviteUserButton
-                  onInviteSent={reloadDashboard}
-                />
-
-                <CreateLoanForm
-                  lenders={availableLenders}
-                  onCreate={handleCreate}
-                  onInviteSent={reloadDashboard}
-                />
-
-                <LoansPage
-                  mode="active"
-                  loans={loans}
-                  user={user}
-                  isAdmin={isAdmin}
-                  repayments={repayments}
-                  fundingActivationCodes={fundingActivationCodes}
-                  onLoadRepayments={loadRepayments}
-                  onConfirm={handleConfirm}
-                  onRegenerateActivationCode={handleRegenerateActivationCode}
-                  onActivateLoan={handleActivateLoan}
-                  onActivateLoanByConfirmation={handleActivateLoanByConfirmation}
-                  onReject={handleReject}
-                  onMarkPaid={handleMarkPaid}
-                  onRepay={handleRepay}
-                  onConfirmRepayment={handleConfirmRepayment}
-                  onRejectRepayment={handleRejectRepayment}
-                />
-              </>
+              <HomePage
+                summary={summary}
+                lenders={availableLenders}
+                loans={loans}
+                user={user}
+                isAdmin={isAdmin}
+                repayments={repayments}
+                fundingActivationCodes={fundingActivationCodes}
+                onInviteSent={reloadDashboard}
+                onCreate={handleCreate}
+                onLoadRepayments={loadRepayments}
+                onConfirm={handleConfirm}
+                onRegenerateActivationCode={handleRegenerateActivationCode}
+                onActivateLoan={handleActivateLoan}
+                onActivateLoanByConfirmation={handleActivateLoanByConfirmation}
+                onReject={handleReject}
+                onMarkPaid={handleMarkPaid}
+                onRepay={handleRepay}
+                onConfirmRepayment={handleConfirmRepayment}
+                onRejectRepayment={handleRejectRepayment}
+              />
             }
           />
 
           <Route
-            path="/paid"
+            path="/profile"
+            element={
+              <ProfilePage
+                user={user}
+                summary={summary}
+                lenders={availableLenders}
+                onLogout={handleLogout}
+              />
+            }
+          />
+
+          <Route
+            path="/events"
+            element={
+              <HistoryPage
+                title="Последние события"
+                emptyText="Событий пока нет"
+                history={history}
+              />
+            }
+          />
+
+          <Route
+            path="/active"
+            element={
+              <LoansPage
+                mode="active"
+                loans={loans}
+                user={user}
+                isAdmin={isAdmin}
+                repayments={repayments}
+                fundingActivationCodes={fundingActivationCodes}
+                onLoadRepayments={loadRepayments}
+                onConfirm={handleConfirm}
+                onRegenerateActivationCode={handleRegenerateActivationCode}
+                onActivateLoan={handleActivateLoan}
+                onActivateLoanByConfirmation={handleActivateLoanByConfirmation}
+                onReject={handleReject}
+                onMarkPaid={handleMarkPaid}
+                onRepay={handleRepay}
+                onConfirmRepayment={handleConfirmRepayment}
+                onRejectRepayment={handleRejectRepayment}
+              />
+            }
+          />
+
+          <Route
+            path="/history"
             element={
               <LoansPage
                 mode="paid"
@@ -761,9 +793,22 @@ function App() {
           />
 
           <Route
-            path="/history"
+            path="/paid"
             element={
-              <HistoryPage history={history} />
+              <Navigate
+                to="/history"
+                replace
+              />
+            }
+          />
+
+          <Route
+            path="/old-history"
+            element={
+              <Navigate
+                to="/events"
+                replace
+              />
             }
           />
 

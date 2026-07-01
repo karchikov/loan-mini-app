@@ -3,72 +3,88 @@ import { NavLink } from "react-router-dom";
 function MainLayout({
   children,
   user,
-  onLogout,
 }) {
   return (
     <div className="app">
-      <div className="topbar">
-        <div>
-          <h1 className="app-title">
-            Учет займов
-          </h1>
+      <div className="telegram-topbar">
+        <span className="telegram-time">9:41</span>
 
-          {user && (
-            <p className="app-subtitle">
-              @{user.username}
-            </p>
-          )}
+        <div className="telegram-title">
+          <strong>LoanMiniApp</strong>
+          <span>мини-приложение</span>
         </div>
 
-        {user && (
-          <button
-            className="logout-button"
-            onClick={onLogout}
-          >
-            Выйти
-          </button>
-        )}
+        <span className="telegram-menu">•••</span>
       </div>
 
+      <main className="app-content">
+        {children}
+      </main>
+
       {user && (
-        <div className="tabs">
+        <nav className="bottom-nav">
+          <NavLink
+            to="/profile"
+            className={({ isActive }) =>
+              isActive
+                ? "bottom-nav-button active"
+                : "bottom-nav-button"
+            }
+          >
+            <span className="bottom-nav-icon">П</span>
+            <span>Профиль</span>
+          </NavLink>
+
+          <NavLink
+            to="/events"
+            className={({ isActive }) =>
+              isActive
+                ? "bottom-nav-button active"
+                : "bottom-nav-button"
+            }
+          >
+            <span className="bottom-nav-icon">С</span>
+            <span>События</span>
+          </NavLink>
+
           <NavLink
             to="/"
             end
             className={({ isActive }) =>
               isActive
-                ? "tab-button active"
-                : "tab-button"
+                ? "bottom-nav-button home active"
+                : "bottom-nav-button home"
             }
           >
-            Активные
+            <span className="home-nav-icon">Г</span>
+            <span>Главная</span>
           </NavLink>
 
           <NavLink
-            to="/paid"
+            to="/active"
             className={({ isActive }) =>
               isActive
-                ? "tab-button active"
-                : "tab-button"
+                ? "bottom-nav-button active"
+                : "bottom-nav-button"
             }
           >
-            Погашены
+            <span className="bottom-nav-icon">А</span>
+            <span>Активные</span>
           </NavLink>
 
           <NavLink
             to="/history"
             className={({ isActive }) =>
               isActive
-                ? "tab-button active"
-                : "tab-button"
+                ? "bottom-nav-button active"
+                : "bottom-nav-button"
             }
           >
-            История
+            <span className="bottom-nav-icon">И</span>
+            <span>История</span>
           </NavLink>
-        </div>
+        </nav>
       )}
-
-      {children}
     </div>
   );
 }
