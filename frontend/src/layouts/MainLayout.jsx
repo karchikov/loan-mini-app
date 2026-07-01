@@ -6,6 +6,17 @@ function MainLayout({
 }) {
   return (
     <div className="app">
+      <div className="telegram-topbar">
+        <span className="telegram-time">9:41</span>
+
+        <div className="telegram-title">
+          <strong>LoanMiniApp</strong>
+          <span>мини-приложение</span>
+        </div>
+
+        <span className="telegram-menu">•••</span>
+      </div>
+
       <main className="app-content">
         {children}
       </main>
