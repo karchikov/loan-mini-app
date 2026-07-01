@@ -309,7 +309,7 @@ function App() {
         key: `loan:${loan.id}:pending-repayment:${nextSnapshot.pendingRepaymentsCount}`,
         type: "warning",
         message:
-          `${loanPrefix}: появился платеж на подтверждении. ` +
+          `${loanPrefix}: заемщик зафиксировал возврат на подтверждении. ` +
           "Проверьте карточку займа.",
       };
     }
@@ -318,7 +318,7 @@ function App() {
       key: `loan:${loan.id}:pending-repayment:${nextSnapshot.pendingRepaymentsCount}`,
       type: "info",
       message:
-        `${loanPrefix}: платеж ожидает подтверждения кредитором.`,
+        `${loanPrefix}: возврат ожидает подтверждения кредитором.`,
     };
   }
 

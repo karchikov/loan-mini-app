@@ -266,7 +266,7 @@ function CreateLoanForm({
 
       setError(
         err.response?.data?.detail ||
-          "Не удалось запросить займ",
+          "Не удалось создать заявку",
       );
     } finally {
       setLoading(false);
@@ -277,11 +277,13 @@ function CreateLoanForm({
     <div className="card create-loan-card">
       <div className="form-header">
         <h2>
-          Запросить займ
+          Создать заявку на займ
         </h2>
 
         <p>
-          Выберите кредитора из вашей Telegram-сети, укажите сумму, валюту, срок возврата и описание заявки.
+          Выберите кредитора из вашей Telegram-сети, укажите сумму,
+          валюту и срок возврата. Приложение фиксирует заявку, а
+          передача денег происходит вне приложения.
         </p>
       </div>
 
@@ -294,7 +296,8 @@ function CreateLoanForm({
           </p>
 
           <p>
-            Пригласите человека в приложение. После входа он появится в этом списке, и вы сможете запросить у него займ.
+            Первый шаг — пригласить человека в приложение. После входа
+            он появится в списке, и вы сможете создать заявку.
           </p>
         </div>
       )}
@@ -351,7 +354,7 @@ function CreateLoanForm({
                 >
                   {inviteLoading
                     ? "Создаем ссылку..."
-                    : "👤 Пригласить нового кредитора"}
+                    : "Пригласить нового кредитора"}
                 </button>
 
                 <div className="custom-dropdown-divider" />
@@ -388,6 +391,9 @@ function CreateLoanForm({
 
           <input
             type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
             placeholder="Например: 5000"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -403,6 +409,7 @@ function CreateLoanForm({
             min="0"
             max="1000"
             step="0.01"
+            inputMode="decimal"
             placeholder="Например: 12.5"
             value={annualInterestRate}
             onChange={(e) => setAnnualInterestRate(e.target.value)}
@@ -447,7 +454,7 @@ function CreateLoanForm({
 
           <input
             type="text"
-            placeholder="Например: до пятницы"
+            placeholder="Например: до пятницы, по личной договоренности"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             disabled={loading || inviteLoading || !hasAvailableLenders}
@@ -471,7 +478,7 @@ function CreateLoanForm({
           className="full-width create-loan-button"
           disabled={loading || inviteLoading || !hasAvailableLenders}
         >
-          {loading ? "Отправка..." : "Запросить займ"}
+          {loading ? "Создаем заявку..." : "Создать заявку"}
         </button>
       </form>
 

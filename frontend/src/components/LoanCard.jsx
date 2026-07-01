@@ -8,8 +8,8 @@ import { getInterestLedger } from "../api/loans";
 import { formatDate, formatMoney } from "../utils/formatters";
 
 const LOAN_STATUS_LABELS = {
-  draft: "Ожидает действия кредитора",
-  waiting_confirmation: "Ожидает подтверждения погашения",
+  draft: "Заявка у кредитора",
+  waiting_confirmation: "Ожидает закрытия кредитором",
   funding_pending: "Ожидает подтверждения заемщика",
   active: "Активен",
   partially_paid: "Частично погашен",
@@ -140,6 +140,75 @@ function formatDaysWord(days) {
   }
 
   return "дней";
+}
+
+function getNextStepText({
+  status,
+  isBorrower,
+  isLender,
+  isAdmin,
+  isExpiredLoan,
+  hasPendingRepayments,
+}) {
+  if (isExpiredLoan) {
+    return "Заявка не была завершена до срока возврата. Создайте новую заявку, если договоренность актуальна.";
+  }
+
+  if (hasPendingRepayments) {
+    if (isBorrower) {
+      return "Зафиксированный возврат ожидает подтверждения кредитором.";
+    }
+
+    if (isLender || isAdmin) {
+      return "Проверьте фактическое получение суммы вне приложения и подтвердите или отклоните возврат.";
+    }
+  }
+
+  if (status === "draft") {
+    if (isLender || isAdmin) {
+      return "Проверьте заявку. Если готовы передать деньги вне приложения, подтвердите готовность.";
+    }
+
+    return "Заявка отправлена кредитору. Ожидайте подтверждения готовности.";
+  }
+
+  if (status === "funding_pending") {
+    if (isBorrower || isAdmin) {
+      return "Подтвердите получение только после фактического получения денег вне приложения.";
+    }
+
+    return "Готовность зафиксирована. Ожидаем подтверждения заемщика после передачи денег вне приложения.";
+  }
+
+  if (status === "active" || status === "partially_paid") {
+    if (isBorrower) {
+      return "Если вы вернули часть суммы вне приложения, зафиксируйте возврат в карточке.";
+    }
+
+    if (isLender || isAdmin) {
+      return "Если заемщик вернул сумму вне приложения, подтвердите полученный возврат.";
+    }
+
+    return "Займ активен.";
+  }
+
+  if (status === "waiting_confirmation") {
+    if (isLender || isAdmin) {
+      return "Проверьте фактическое получение полной суммы и подтвердите закрытие займа.";
+    }
+
+    return "Ожидаем подтверждения закрытия займа кредитором.";
+  }
+
+  if (status === "paid") {
+    return "Займ закрыт.";
+  }
+
+  if (status === "rejected") {
+    return "Заявка отклонена.";
+  }
+
+  return "";
 }
 
 function getApiErrorText(error, fallbackText) {
@@ -289,7 +358,16 @@ function LoanCard({
   const markPaidButtonText =
     loan.status === "waiting_confirmation"
       ? "Подтвердить закрытие займа"
-      : "Отметить как погашенный";
+      : "Подтвердить полное погашение";
+
+  const nextStepText = getNextStepText({
+    status: loan.status,
+    isBorrower,
+    isLender,
+    isAdmin,
+    isExpiredLoan,
+    hasPendingRepayments,
+  });
 
   useEffect(() => {
     if (
@@ -507,7 +585,7 @@ function LoanCard({
       console.error(error);
 
       setRepaymentActionError(
-        "Не удалось подтвердить платеж. Попробуйте еще раз.",
+        "Не удалось подтвердить возврат. Попробуйте еще раз.",
       );
     } finally {
       setProcessingRepaymentId(null);
@@ -528,7 +606,7 @@ function LoanCard({
       console.error(error);
 
       setRepaymentActionError(
-        "Не удалось отклонить платеж. Попробуйте еще раз.",
+        "Не удалось отклонить возврат. Попробуйте еще раз.",
       );
     } finally {
       setProcessingRepaymentId(null);
@@ -606,6 +684,12 @@ function LoanCard({
           <p className={`loan-status ${displayStatus}`}>
             {statusLabel}
           </p>
+
+          {nextStepText && (
+            <p className="loan-next-step">
+              {nextStepText}
+            </p>
+          )}
 
           {isOverdue && (
             <div className="loan-overdue-badge">
@@ -773,7 +857,7 @@ function LoanCard({
             {hasPendingRepayments && (
               <div className="loan-info-row">
                 <span className="loan-info-label">
-                  Платежи на подтверждении
+                  Возвраты на подтверждении
                 </span>
 
                 <span className="loan-info-value">
@@ -783,7 +867,7 @@ function LoanCard({
                   )}
 
                   <p className="loan-overdue-text">
-                    Количество платежей: {pendingRepaymentsCount}
+                    Количество возвратов: {pendingRepaymentsCount}
                   </p>
                 </span>
               </div>
@@ -954,7 +1038,7 @@ function LoanCard({
           {hasPendingRepayments && (
             <div className="loan-info-panel">
               <h3 className="loan-info-title">
-                Платежи на подтверждении
+                Возвраты на подтверждении
               </h3>
 
               {repaymentActionError && (
@@ -965,7 +1049,7 @@ function LoanCard({
 
               {pendingRepayments.length === 0 && (
                 <p className="muted">
-                  Откройте историю погашений, чтобы посмотреть платежи.
+                  Откройте историю возвратов, чтобы посмотреть детали.
                 </p>
               )}
 
@@ -1003,7 +1087,7 @@ function LoanCard({
 
                     {showBorrowerNotice && (
                       <p className="muted">
-                        Платеж отправлен кредитору на подтверждение.
+                        Возврат ожидает подтверждения кредитором.
                       </p>
                     )}
 
@@ -1018,7 +1102,7 @@ function LoanCard({
                         >
                           {isProcessing
                             ? "Обработка..."
-                            : "Подтвердить платеж"}
+                            : "Подтвердить получение суммы"}
                         </button>
 
                         <button
@@ -1029,7 +1113,7 @@ function LoanCard({
                             handleRejectPendingRepayment(repayment.id)
                           }
                         >
-                          Отклонить платеж
+                          Отклонить возврат
                         </button>
                       </div>
                     )}
@@ -1075,7 +1159,7 @@ function LoanCard({
                 type="button"
                 onClick={() => onConfirm(loan.id)}
               >
-                Подтвердить готовность передать вне приложения
+                Готов передать вне приложения
               </button>
 
               <button
@@ -1113,8 +1197,8 @@ function LoanCard({
               onClick={handleToggleHistory}
             >
               {historyVisible
-                ? "Скрыть историю погашений"
-                : "Показать историю погашений"}
+                ? "Скрыть историю возвратов"
+                : "Показать историю возвратов"}
             </button>
 
             <button

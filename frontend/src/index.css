@@ -334,6 +334,10 @@ body {
   gap: 12px;
 }
 
+.loan-header > div:first-child {
+  min-width: 0;
+}
+
 .loan-overdue-badge,
 .loan-expired-badge {
   display: inline-flex;
@@ -364,6 +368,7 @@ body {
   margin: 0;
   font-size: 18px;
   font-weight: bold;
+  overflow-wrap: anywhere;
 }
 
 .loan-status {
@@ -439,6 +444,15 @@ body {
   font-size: 22px;
   font-weight: bold;
   white-space: nowrap;
+  text-align: right;
+}
+
+.loan-next-step {
+  max-width: 100%;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .loan-main-amount {
@@ -977,6 +991,13 @@ input::placeholder {
     align-items: flex-start;
   }
 
+  .loan-amount {
+    max-width: 100%;
+    white-space: normal;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
   .loan-overdue-badge,
   .loan-expired-badge {
     width: fit-content;
@@ -984,6 +1005,17 @@ input::placeholder {
 
   .loan-main-amount {
     font-size: 32px;
+  }
+
+  .loan-info-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .loan-info-value {
+    width: 100%;
+    text-align: left;
+    overflow-wrap: anywhere;
   }
 
   .custom-dropdown-menu {

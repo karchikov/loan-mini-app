@@ -26,14 +26,14 @@ function RepayForm({ onRepay }) {
 
       setAmount("");
       setSuccess(
-        "Платеж отправлен кредитору на подтверждение"
+        "Сумма возврата зафиксирована и ожидает подтверждения кредитором"
       );
     } catch (err) {
       console.error(err);
 
       setError(
         err.response?.data?.detail ||
-          "Не удалось отправить платеж"
+          "Не удалось зафиксировать возврат"
       );
     } finally {
       setLoading(false);
@@ -45,8 +45,10 @@ function RepayForm({ onRepay }) {
       <input
         ref={amountInputRef}
         type="number"
+        min="0"
+        step="0.01"
         inputMode="decimal"
-        placeholder="Сумма платежа"
+        placeholder="Сумма возврата"
         value={amount}
         disabled={loading}
         onChange={(e) => setAmount(e.target.value)}
@@ -57,7 +59,7 @@ function RepayForm({ onRepay }) {
       {success && <p className="form-success">{success}</p>}
 
       <button onClick={handleSubmit} disabled={loading}>
-        {loading ? "Обработка..." : "Отправить платеж"}
+        {loading ? "Фиксируем..." : "Зафиксировать возврат"}
       </button>
     </div>
   );

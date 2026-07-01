@@ -3,7 +3,7 @@ import { useState } from "react";
 import { formatDate, formatMoney } from "../utils/formatters";
 
 const REPAYMENT_STATUS_LABELS = {
-  pending: "Ожидает подтверждения",
+  pending: "Ожидает подтверждения кредитором",
   confirmed: "Подтвержден",
   rejected: "Отклонен",
 };
@@ -16,10 +16,10 @@ function getRepaymentActionErrorMessage(error) {
     message.includes("Borrower cannot confirm own repayment") ||
     message.includes("Borrower cannot reject own repayment")
   ) {
-    return "Заемщик не может подтвердить или отклонить собственный платеж. Подтверждение должен выполнить кредитор.";
+    return "Заемщик не может подтвердить или отклонить собственный возврат. Подтверждение должен выполнить кредитор.";
   }
 
-  return "Не удалось выполнить действие с платежом. Попробуйте еще раз.";
+  return "Не удалось выполнить действие с возвратом. Попробуйте еще раз.";
 }
 
 function RepaymentHistory({
@@ -72,7 +72,7 @@ function RepaymentHistory({
 
   return (
     <div className="repayment-history">
-      <h3>История погашений</h3>
+      <h3>История возвратов</h3>
 
       {actionError && (
         <p className="error-message">
@@ -82,7 +82,7 @@ function RepaymentHistory({
 
       {repayments?.length === 0 && (
         <p className="muted">
-          Погашений пока нет
+          Зафиксированных возвратов пока нет
         </p>
       )}
 
@@ -177,7 +177,7 @@ function RepaymentHistory({
 
             {shouldShowBorrowerRestriction && (
               <p className="muted">
-                Заемщик не может подтвердить собственный платеж.
+                Заемщик не может подтвердить собственный возврат.
                 Подтверждение должен выполнить кредитор.
               </p>
             )}
@@ -191,7 +191,7 @@ function RepaymentHistory({
                 >
                   {isProcessing
                     ? "Обработка..."
-                    : "Подтвердить платеж"}
+                    : "Подтвердить получение суммы"}
                 </button>
 
                 <button
@@ -199,7 +199,7 @@ function RepaymentHistory({
                   disabled={isProcessing}
                   onClick={() => handleReject(repayment.id)}
                 >
-                  Отклонить платеж
+                  Отклонить возврат
                 </button>
               </div>
             )}
