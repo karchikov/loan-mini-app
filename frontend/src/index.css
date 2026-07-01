@@ -1066,61 +1066,8 @@ body {
   overflow-x: hidden;
 }
 
-.telegram-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 60;
-  height: 58px;
-  display: grid;
-  grid-template-columns: 58px 1fr 58px;
-  align-items: center;
-  padding: 8px 16px 0;
-  background: rgba(248, 251, 255, 0.96);
-  backdrop-filter: blur(12px);
-}
-
-.telegram-time {
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.telegram-title {
-  text-align: center;
-  line-height: 1.15;
-}
-
-.telegram-title strong,
-.telegram-title span {
-  display: block;
-}
-
-.telegram-title strong {
-  font-size: 15px;
-}
-
-.telegram-title span {
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.telegram-menu {
-  justify-self: end;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid rgba(11, 132, 243, 0.28);
-  background: var(--card);
-  color: var(--primary-dark);
-  font-size: 13px;
-  font-weight: 900;
-}
-
 .app-content {
-  padding: 10px 16px 94px;
+  padding: 14px 16px 94px;
 }
 
 .bottom-nav {
@@ -1269,7 +1216,7 @@ body {
 
 .create-loan-card {
   margin-top: 14px;
-  padding: 16px;
+  padding: 15px;
 }
 
 .form-header {
@@ -1298,9 +1245,28 @@ body {
 
 .form-field span {
   margin-bottom: 6px;
-  color: #25314a;
+  color: #1f2a44;
   font-size: 12px;
   font-weight: 900;
+}
+
+.create-loan-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 10px;
+  row-gap: 10px;
+}
+
+.create-loan-form .form-field {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.create-loan-field-full,
+.create-loan-form .form-success,
+.create-loan-form .form-error,
+.create-loan-form .create-loan-button {
+  grid-column: 1 / -1;
 }
 
 input,
@@ -1309,14 +1275,38 @@ textarea,
 .custom-dropdown-toggle {
   min-height: 46px;
   border-radius: 12px;
-  border-color: var(--border);
+  border-color: #cbd8e8;
+  background-color: #ffffff;
+  color: #111827;
   box-shadow: 0 8px 18px rgba(45, 75, 110, 0.04);
+  opacity: 1;
+  -webkit-text-fill-color: #111827;
 }
 
 input,
 select,
 textarea {
   margin-bottom: 0;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #5b6678;
+  opacity: 1;
+  -webkit-text-fill-color: #5b6678;
+}
+
+select:disabled,
+input:disabled,
+textarea:disabled,
+.custom-dropdown-toggle:disabled {
+  background-color: #f2f6fb;
+  color: #4b5563;
+  -webkit-text-fill-color: #4b5563;
+}
+
+.custom-dropdown-placeholder {
+  color: #4b5563;
 }
 
 .custom-dropdown {
@@ -1372,6 +1362,13 @@ button:not(.notification-close-button):not(.bottom-nav-button) {
   border-color: rgba(239, 155, 24, 0.35);
 }
 
+.loan-card-action-required {
+  border-color: rgba(239, 155, 24, 0.34);
+  box-shadow:
+    0 0 0 1px rgba(239, 155, 24, 0.08),
+    var(--shadow-soft);
+}
+
 .loan-card-overdue {
   border-color: rgba(220, 61, 61, 0.55);
 }
@@ -1406,6 +1403,58 @@ button:not(.notification-close-button):not(.bottom-nav-button) {
   font-size: 13px;
   line-height: 1.38;
   font-weight: 700;
+}
+
+.loan-compact-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.loan-compact-item {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 13px;
+  background: #f7faff;
+  border: 1px solid var(--border);
+}
+
+.loan-compact-item span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.loan-compact-item strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.loan-expand-hint {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 12px;
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.loan-expand-hint::after {
+  content: "›";
+  display: inline-block;
+  margin-left: 6px;
+  transform: rotate(90deg);
+  font-size: 16px;
+  line-height: 1;
 }
 
 .loan-info-panel,
@@ -1545,6 +1594,14 @@ button:not(.notification-close-button):not(.bottom-nav-button) {
   }
 
   .actions {
+    grid-template-columns: 1fr;
+  }
+
+  .loan-compact-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .create-loan-form {
     grid-template-columns: 1fr;
   }
 

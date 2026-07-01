@@ -300,8 +300,11 @@ function CreateLoanForm({
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
-        <label className="form-field">
+      <form
+        className="create-loan-form"
+        onSubmit={handleSubmit}
+      >
+        <label className="form-field create-loan-field-lender">
           <span>Кредитор</span>
 
           <div
@@ -384,38 +387,7 @@ function CreateLoanForm({
           </div>
         </label>
 
-        <label className="form-field">
-          <span>Сумма займа</span>
-
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            inputMode="decimal"
-            placeholder="Например: 5000"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            disabled={loading || inviteLoading || !hasAvailableLenders}
-          />
-        </label>
-
-        <label className="form-field">
-          <span>Процентная ставка, % годовых</span>
-
-          <input
-            type="number"
-            min="0"
-            max="1000"
-            step="0.01"
-            inputMode="decimal"
-            placeholder="Например: 12.5"
-            value={annualInterestRate}
-            onChange={(e) => setAnnualInterestRate(e.target.value)}
-            disabled={loading || inviteLoading || !hasAvailableLenders}
-          />
-        </label>
-
-        <label className="form-field">
+        <label className="form-field create-loan-field-currency">
           <span>Валюта</span>
 
           <select
@@ -434,7 +406,38 @@ function CreateLoanForm({
           </select>
         </label>
 
-        <label className="form-field">
+        <label className="form-field create-loan-field-amount">
+          <span>Сумма займа</span>
+
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            placeholder="Например: 5000"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={loading || inviteLoading || !hasAvailableLenders}
+          />
+        </label>
+
+        <label className="form-field create-loan-field-interest">
+          <span>Процентная ставка, % годовых</span>
+
+          <input
+            type="number"
+            min="0"
+            max="1000"
+            step="0.01"
+            inputMode="decimal"
+            placeholder="Например: 12.5"
+            value={annualInterestRate}
+            onChange={(e) => setAnnualInterestRate(e.target.value)}
+            disabled={loading || inviteLoading || !hasAvailableLenders}
+          />
+        </label>
+
+        <label className="form-field create-loan-field-full">
           <span>Срок возврата</span>
 
           <input
@@ -447,7 +450,7 @@ function CreateLoanForm({
           />
         </label>
 
-        <label className="form-field">
+        <label className="form-field create-loan-field-full">
           <span>Примечание</span>
 
           <input

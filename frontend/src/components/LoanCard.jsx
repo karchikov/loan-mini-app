@@ -354,6 +354,8 @@ function LoanCard({
   const currency = loan.currency || "RUB";
   const principalRemaining = loan.principal_remaining ?? loan.amount;
   const unpaidInterest = loan.unpaid_interest ?? 0;
+  const remainingBalance = loan.remaining_balance ?? principalRemaining;
+  const dueDateText = formatDateValue(loan.due_date);
 
   const markPaidButtonText =
     loan.status === "waiting_confirmation"
@@ -368,6 +370,12 @@ function LoanCard({
     isExpiredLoan,
     hasPendingRepayments,
   });
+
+  const hasActionRequired =
+    canConfirmOrReject ||
+    canActivateLoan ||
+    hasPendingRepayments ||
+    loan.status === "waiting_confirmation";
 
   useEffect(() => {
     if (
@@ -665,6 +673,8 @@ function LoanCard({
         isExpiredLoan ? "loan-card-expired" : ""
       } ${
         isFundingPending && !isExpiredLoan ? "loan-card-funding-pending" : ""
+      } ${
+        hasActionRequired && !isClosedLoan ? "loan-card-action-required" : ""
       }`}
     >
       <div
@@ -702,6 +712,38 @@ function LoanCard({
               Срок заявки истек
             </div>
           )}
+
+          <div className="loan-compact-summary">
+            <div className="loan-compact-item">
+              <span>Срок</span>
+              <strong>{dueDateText}</strong>
+            </div>
+
+            <div className="loan-compact-item">
+              <span>Остаток</span>
+              <strong>{formatMoney(remainingBalance, currency)}</strong>
+            </div>
+
+            <div className="loan-compact-item">
+              <span>
+                {hasPendingRepayments
+                  ? "На подтверждении"
+                  : "Проценты"}
+              </span>
+              <strong>
+                {hasPendingRepayments
+                  ? formatMoney(
+                      loan.pending_repayments_total || 0,
+                      currency,
+                    )
+                  : formatMoney(unpaidInterest, currency)}
+              </strong>
+            </div>
+          </div>
+
+          <span className="loan-expand-hint">
+            {isExpanded ? "Свернуть" : "Подробнее"}
+          </span>
         </div>
 
         <div className="loan-amount">
@@ -1159,7 +1201,7 @@ function LoanCard({
                 type="button"
                 onClick={() => onConfirm(loan.id)}
               >
-                Готов передать вне приложения
+                Готов передать средства вне приложения
               </button>
 
               <button
