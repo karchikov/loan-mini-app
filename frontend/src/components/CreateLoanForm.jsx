@@ -169,6 +169,12 @@ function CreateLoanForm({
     setLenderId(String(selectedUserId));
     setDropdownOpen(false);
     setLenderSearch("");
+
+    const activeElement = document.activeElement;
+
+    if (typeof activeElement?.blur === "function") {
+      activeElement.blur();
+    }
   }
 
   function handleInviteClick() {

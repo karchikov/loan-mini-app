@@ -1159,7 +1159,7 @@ function LoanCard({
                 type="button"
                 onClick={() => onConfirm(loan.id)}
               >
-                Готов передать вне приложения
+                Готов передать средства вне приложения
               </button>
 
               <button

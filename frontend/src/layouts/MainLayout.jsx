@@ -6,16 +6,10 @@ function MainLayout({
 }) {
   return (
     <div className="app">
-      <div className="telegram-topbar">
-        <span className="telegram-time">9:41</span>
-
-        <div className="telegram-title">
-          <strong>LoanMiniApp</strong>
-          <span>мини-приложение</span>
-        </div>
-
-        <span className="telegram-menu">•••</span>
-      </div>
+      <div
+        className="telegram-topbar"
+        aria-hidden="true"
+      />
 
       <main className="app-content">
         {children}
@@ -36,15 +30,15 @@ function MainLayout({
           </NavLink>
 
           <NavLink
-            to="/events"
+            to="/active"
             className={({ isActive }) =>
               isActive
                 ? "bottom-nav-button active"
                 : "bottom-nav-button"
             }
           >
-            <span className="bottom-nav-icon">С</span>
-            <span>События</span>
+            <span className="bottom-nav-icon">А</span>
+            <span>Активные</span>
           </NavLink>
 
           <NavLink
@@ -61,15 +55,15 @@ function MainLayout({
           </NavLink>
 
           <NavLink
-            to="/active"
+            to="/events"
             className={({ isActive }) =>
               isActive
                 ? "bottom-nav-button active"
                 : "bottom-nav-button"
             }
           >
-            <span className="bottom-nav-icon">А</span>
-            <span>Активные</span>
+            <span className="bottom-nav-icon">С</span>
+            <span>События</span>
           </NavLink>
 
           <NavLink
