@@ -1059,7 +1059,7 @@ body {
   min-height: 100vh;
   margin: 0 auto;
   padding: 0;
-  background: #f8fbff;
+  background: #ffffff;
   border-left: 1px solid rgba(11, 132, 243, 0.10);
   border-right: 1px solid rgba(11, 132, 243, 0.10);
   box-shadow: var(--shadow);
