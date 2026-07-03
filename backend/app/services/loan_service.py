@@ -33,6 +33,7 @@ from app.services.telegram_notifications import (
     notify_repayment_rejected,
     notify_repayment_submitted,
 )
+from app.services.user_network_service import can_user_access_contact
 
 
 FUNDING_ACTIVATION_CODE_LENGTH = 4
@@ -253,54 +254,16 @@ def set_funding_activation_code(
     return activation_code
 
 
-def get_connected_user_ids(
-    users: list[User],
-    current_user_id: int,
-) -> set[int]:
-    graph: dict[int, set[int]] = {}
-
-    for user in users:
-        graph.setdefault(user.id, set())
-
-        if user.invited_by_user_id is not None:
-            graph.setdefault(user.invited_by_user_id, set())
-            graph[user.id].add(user.invited_by_user_id)
-            graph[user.invited_by_user_id].add(user.id)
-
-    visited = set()
-    queue = [current_user_id]
-
-    while queue:
-        user_id = queue.pop(0)
-
-        if user_id in visited:
-            continue
-
-        visited.add(user_id)
-
-        for connected_user_id in graph.get(user_id, set()):
-            if connected_user_id not in visited:
-                queue.append(connected_user_id)
-
-    return visited
-
-
-def is_user_in_telegram_network(
+def is_user_available_lender(
     db: Session,
     current_user: User,
     user: User,
 ) -> bool:
-    result = db.execute(
-        select(User)
+    return can_user_access_contact(
+        db=db,
+        current_user=current_user,
+        contact_user_id=user.id,
     )
-    users = result.scalars().all()
-
-    connected_user_ids = get_connected_user_ids(
-        users=users,
-        current_user_id=current_user.id,
-    )
-
-    return user.id in connected_user_ids
 
 
 def loan_with_users_query():
@@ -405,7 +368,7 @@ def create_loan(
 
     if (
         not is_admin(current_user)
-        and not is_user_in_telegram_network(
+        and not is_user_available_lender(
             db=db,
             current_user=current_user,
             user=lender,
@@ -413,7 +376,7 @@ def create_loan(
     ):
         raise HTTPException(
             status_code=403,
-            detail="Lender is not in your Telegram network",
+            detail="Lender is not available for current user",
         )
 
     loan = Loan(

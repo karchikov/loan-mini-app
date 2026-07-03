@@ -297,6 +297,20 @@ body {
   font-size: 15px;
 }
 
+.contact-alias-box {
+  margin: 4px 0 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+.contact-alias-hint {
+  margin: -2px 0 10px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .loan-card {
   overflow: visible;
   border-radius: 22px;

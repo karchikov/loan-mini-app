@@ -13,7 +13,7 @@ const AVAILABLE_CURRENCIES = [
 const PAST_DUE_DATE_ERROR =
   "Нельзя создать заявку с прошедшей датой возврата. Выберите сегодняшнюю или будущую дату.";
 
-function formatUserName(user) {
+function formatTelegramUserName(user) {
   const nameParts = [
     user.first_name,
     user.last_name,
@@ -26,6 +26,17 @@ function formatUserName(user) {
   }
 
   return fullName || `Пользователь #${user.id}`;
+}
+
+function formatUserName(user) {
+  const telegramName = formatTelegramUserName(user);
+  const alias = user.contact_alias || user.display_name;
+
+  if (alias && alias !== telegramName) {
+    return `${alias} · ${telegramName}`;
+  }
+
+  return telegramName;
 }
 
 function normalizeSearchValue(value) {
@@ -55,6 +66,7 @@ function CreateLoanForm({
   lenders = [],
   onCreate,
   onInviteSent,
+  onRenameLender,
 }) {
   const dropdownRef = useRef(null);
 
@@ -69,6 +81,10 @@ function CreateLoanForm({
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [aliasDraft, setAliasDraft] = useState("");
+  const [aliasSaving, setAliasSaving] = useState(false);
+  const [aliasMessage, setAliasMessage] = useState("");
+  const [aliasError, setAliasError] = useState("");
   const [error, setError] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
 
@@ -96,6 +112,8 @@ function CreateLoanForm({
           user.first_name,
           user.last_name,
           user.username,
+          user.contact_alias,
+          user.display_name,
           formatUserName(user),
         ].join(" "),
       );
@@ -142,7 +160,7 @@ function CreateLoanForm({
       }
 
       setInfoMessage(
-        "Приглашение подготовлено. После входа пользователя список кредиторов обновится автоматически при возврате в приложение.",
+        "Приглашение подготовлено. После входа пользователя вы сможете задать для него удобное имя в списке кредиторов.",
       );
     } catch (currentError) {
       console.error(currentError);
@@ -164,8 +182,15 @@ function CreateLoanForm({
   }
 
   function handleLenderSelect(selectedUserId) {
+    const nextSelectedLender = lenders.find(
+      (user) => String(user.id) === String(selectedUserId),
+    );
+
     setError("");
     setInfoMessage("");
+    setAliasMessage("");
+    setAliasError("");
+    setAliasDraft(nextSelectedLender?.contact_alias || "");
     setLenderId(String(selectedUserId));
     setDropdownOpen(false);
     setLenderSearch("");
@@ -174,6 +199,40 @@ function CreateLoanForm({
 
     if (typeof activeElement?.blur === "function") {
       activeElement.blur();
+    }
+  }
+
+  async function handleSaveAlias() {
+    if (!selectedLender || !onRenameLender) {
+      return;
+    }
+
+    try {
+      setAliasSaving(true);
+      setAliasMessage("");
+      setAliasError("");
+
+      const normalizedAlias = aliasDraft.trim();
+
+      await onRenameLender(
+        selectedLender.id,
+        normalizedAlias || null,
+      );
+
+      setAliasMessage(
+        normalizedAlias
+          ? "Имя кредитора сохранено"
+          : "Личное имя кредитора очищено",
+      );
+    } catch (currentError) {
+      console.error(currentError);
+
+      setAliasError(
+        currentError.response?.data?.detail ||
+          "Не удалось сохранить имя кредитора",
+      );
+    } finally {
+      setAliasSaving(false);
     }
   }
 
@@ -267,6 +326,9 @@ function CreateLoanForm({
       setDescription("");
       setDueDate("");
       setLenderSearch("");
+      setAliasDraft("");
+      setAliasMessage("");
+      setAliasError("");
     } catch (err) {
       console.error(err);
 
@@ -389,6 +451,54 @@ function CreateLoanForm({
             )}
           </div>
         </label>
+
+        {selectedLender && (
+          <div className="contact-alias-box">
+            <label className="form-field">
+              <span>Имя кредитора для меня</span>
+
+              <input
+                type="text"
+                maxLength="255"
+                placeholder="Например: Виталик поставщик"
+                value={aliasDraft}
+                onChange={(e) => {
+                  setAliasDraft(e.target.value);
+                  setAliasMessage("");
+                  setAliasError("");
+                }}
+                disabled={loading || inviteLoading || aliasSaving}
+              />
+            </label>
+
+            <p className="muted contact-alias-hint">
+              Это имя видно только вам. Telegram-имя контакта не меняется.
+            </p>
+
+            {aliasMessage && (
+              <p className="form-success">
+                {aliasMessage}
+              </p>
+            )}
+
+            {aliasError && (
+              <p className="form-error">
+                {aliasError}
+              </p>
+            )}
+
+            <button
+              type="button"
+              className="secondary-button full-width"
+              onClick={handleSaveAlias}
+              disabled={loading || inviteLoading || aliasSaving}
+            >
+              {aliasSaving
+                ? "Сохраняем имя..."
+                : "Сохранить имя кредитора"}
+            </button>
+          </div>
+        )}
 
         <label className="form-field">
           <span>Сумма займа</span>

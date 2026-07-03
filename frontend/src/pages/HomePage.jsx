@@ -43,6 +43,7 @@ function HomePage({
   fundingActivationCodes,
   onInviteSent,
   onCreate,
+  onRenameLender,
   onLoadRepayments,
   onConfirm,
   onRegenerateActivationCode,
@@ -68,6 +69,7 @@ function HomePage({
         lenders={lenders}
         onCreate={onCreate}
         onInviteSent={onInviteSent}
+        onRenameLender={onRenameLender}
       />
 
       <section className="home-confirmation-section">

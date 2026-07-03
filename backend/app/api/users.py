@@ -13,11 +13,19 @@ from app.models.loan import Loan, LoanStatus
 from app.models.repayment import Repayment
 from app.models.user import User
 from app.schemas.user import (
+    UserContactAliasUpdate,
     UserHistoryItemResponse,
     UserInviteResponse,
     UserNetworkRead,
     UserRead,
     UserSummaryResponse,
+)
+from app.services.user_network_service import (
+    build_contact_response,
+    can_user_access_contact,
+    get_contact_alias_map,
+    get_direct_contact_user_ids,
+    upsert_contact_alias,
 )
 
 router = APIRouter(tags=["users"])
@@ -117,38 +125,6 @@ def format_user_name(user: User | None) -> str:
     return name
 
 
-def get_connected_user_ids(
-    users: list[User],
-    current_user_id: int,
-) -> set[int]:
-    graph: dict[int, set[int]] = {}
-
-    for user in users:
-        graph.setdefault(user.id, set())
-
-        if user.invited_by_user_id is not None:
-            graph.setdefault(user.invited_by_user_id, set())
-            graph[user.id].add(user.invited_by_user_id)
-            graph[user.invited_by_user_id].add(user.id)
-
-    visited = set()
-    queue = [current_user_id]
-
-    while queue:
-        user_id = queue.pop(0)
-
-        if user_id in visited:
-            continue
-
-        visited.add(user_id)
-
-        for connected_user_id in graph.get(user_id, set()):
-            if connected_user_id not in visited:
-                queue.append(connected_user_id)
-
-    return visited
-
-
 @router.get("/me", response_model=UserRead)
 def get_me(
     current_user: User = Depends(get_current_user),
@@ -183,33 +159,96 @@ def get_available_lenders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    users_result = db.execute(
-        select(User).order_by(
+    query = (
+        select(User)
+        .where(
+            User.id != current_user.id
+        )
+        .order_by(
             User.first_name.asc(),
             User.id.asc(),
         )
     )
 
-    all_users = users_result.scalars().all()
-
     if current_user.role == "admin":
-        return [
-            user
-            for user in all_users
-            if user.id != current_user.id
-        ]
+        users_result = db.execute(query)
+        users = users_result.scalars().all()
+    else:
+        direct_contact_user_ids = get_direct_contact_user_ids(
+            db=db,
+            current_user=current_user,
+        )
 
-    connected_user_ids = get_connected_user_ids(
-        users=all_users,
-        current_user_id=current_user.id,
+        if not direct_contact_user_ids:
+            return []
+
+        users_result = db.execute(
+            query.where(
+                User.id.in_(direct_contact_user_ids)
+            )
+        )
+        users = users_result.scalars().all()
+
+    contact_aliases = get_contact_alias_map(
+        db=db,
+        owner_user_id=current_user.id,
+        contact_user_ids={user.id for user in users},
     )
 
     return [
-        user
-        for user in all_users
-        if user.id != current_user.id
-        and user.id in connected_user_ids
+        build_contact_response(
+            user=user,
+            contact_alias=contact_aliases.get(user.id),
+        )
+        for user in users
     ]
+
+
+@router.put(
+    "/users/me/contact-aliases/{contact_user_id}",
+    response_model=UserNetworkRead,
+)
+def update_contact_alias(
+    contact_user_id: int,
+    payload: UserContactAliasUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if contact_user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot rename yourself as a contact",
+        )
+
+    contact_user = db.get(User, contact_user_id)
+
+    if contact_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found",
+        )
+
+    if not can_user_access_contact(
+        db=db,
+        current_user=current_user,
+        contact_user_id=contact_user_id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Contact is not available for current user",
+        )
+
+    contact_alias = upsert_contact_alias(
+        db=db,
+        owner_user_id=current_user.id,
+        contact_user_id=contact_user_id,
+        alias=payload.alias,
+    )
+
+    return build_contact_response(
+        user=contact_user,
+        contact_alias=contact_alias.alias if contact_alias else None,
+    )
 
 
 @router.get("/users/me/summary", response_model=UserSummaryResponse)

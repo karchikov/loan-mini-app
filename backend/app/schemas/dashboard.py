@@ -27,6 +27,8 @@ class DashboardAvailableLenderResponse(BaseModel):
     username: str | None = None
     first_name: str | None = None
     last_name: str | None = None
+    contact_alias: str | None = None
+    display_name: str | None = None
 
 
 class DashboardPendingRepaymentResponse(BaseModel):

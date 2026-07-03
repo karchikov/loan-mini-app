@@ -16,6 +16,7 @@ import ProfilePage from "./pages/ProfilePage";
 import LoadingScreen from "./components/LoadingScreen";
 
 import { loadDashboard } from "./api/dashboard";
+import { updateContactAlias } from "./api/users";
 
 import { useAuth } from "./hooks/useAuth";
 import { useLoans } from "./hooks/useLoans";
@@ -422,6 +423,11 @@ function App() {
     await reloadDashboard();
   }
 
+  async function handleRenameLender(contactUserId, alias) {
+    await updateContactAlias(contactUserId, alias);
+    await reloadDashboard();
+  }
+
   async function handleConfirm(loanId) {
     const result = await confirm(loanId);
 
@@ -707,6 +713,7 @@ function App() {
                 fundingActivationCodes={fundingActivationCodes}
                 onInviteSent={reloadDashboard}
                 onCreate={handleCreate}
+                onRenameLender={handleRenameLender}
                 onLoadRepayments={loadRepayments}
                 onConfirm={handleConfirm}
                 onRegenerateActivationCode={handleRegenerateActivationCode}

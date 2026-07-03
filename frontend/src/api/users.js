@@ -23,3 +23,17 @@ export async function getMyInviteLink() {
 
   return response.data;
 }
+
+export async function updateContactAlias(
+  contactUserId,
+  alias,
+) {
+  const response = await client.put(
+    `/users/me/contact-aliases/${contactUserId}`,
+    {
+      alias,
+    },
+  );
+
+  return response.data;
+}

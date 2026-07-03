@@ -13,6 +13,11 @@ from app.models.user import User
 from app.schemas.dashboard import DashboardResponse
 from app.schemas.user import UserHistoryItemResponse, UserSummaryResponse
 from app.services.loan_balance_service import calculate_remaining_balance_from_values
+from app.services.user_network_service import (
+    build_contact_response,
+    get_contact_alias_map,
+    get_direct_contact_user_ids,
+)
 
 
 router = APIRouter(
@@ -58,38 +63,6 @@ def format_user_name(user: User | None) -> str:
         return f"{name} (@{user.username})"
 
     return name
-
-
-def get_connected_user_ids(
-    users: list[User],
-    current_user_id: int,
-) -> set[int]:
-    graph: dict[int, set[int]] = {}
-
-    for user in users:
-        graph.setdefault(user.id, set())
-
-        if user.invited_by_user_id is not None:
-            graph.setdefault(user.invited_by_user_id, set())
-            graph[user.id].add(user.invited_by_user_id)
-            graph[user.invited_by_user_id].add(user.id)
-
-    visited = set()
-    queue = [current_user_id]
-
-    while queue:
-        user_id = queue.pop(0)
-
-        if user_id in visited:
-            continue
-
-        visited.add(user_id)
-
-        for connected_user_id in graph.get(user_id, set()):
-            if connected_user_id not in visited:
-                queue.append(connected_user_id)
-
-    return visited
 
 
 def get_pending_repayments_by_loan_id(
@@ -363,7 +336,7 @@ def get_dashboard_repayments_history(
 def get_dashboard_available_lenders(
     db: Session,
     current_user: User,
-) -> list[User]:
+) -> list[dict]:
     query = (
         select(User)
         .options(
@@ -384,21 +357,37 @@ def get_dashboard_available_lenders(
         )
     )
 
-    result = db.execute(query)
-    all_users = result.scalars().all()
-
     if is_admin(current_user):
-        return all_users
+        result = db.execute(query)
+        users = result.scalars().all()
+    else:
+        direct_contact_user_ids = get_direct_contact_user_ids(
+            db=db,
+            current_user=current_user,
+        )
 
-    connected_user_ids = get_connected_user_ids(
-        users=all_users + [current_user],
-        current_user_id=current_user.id,
+        if not direct_contact_user_ids:
+            return []
+
+        result = db.execute(
+            query.where(
+                User.id.in_(direct_contact_user_ids)
+            )
+        )
+        users = result.scalars().all()
+
+    contact_aliases = get_contact_alias_map(
+        db=db,
+        owner_user_id=current_user.id,
+        contact_user_ids={user.id for user in users},
     )
 
     return [
-        user
-        for user in all_users
-        if user.id in connected_user_ids
+        build_contact_response(
+            user=user,
+            contact_alias=contact_aliases.get(user.id),
+        )
+        for user in users
     ]
 
 
