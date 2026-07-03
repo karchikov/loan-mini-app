@@ -1085,7 +1085,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 60;
-  height: 58px;
+  height: 46px;
   background: #ffffff;
 }
 
@@ -1279,10 +1279,21 @@ input,
 select,
 textarea,
 .custom-dropdown-toggle {
+  width: 100%;
   min-height: 46px;
   border-radius: 12px;
   border-color: var(--border);
   box-shadow: 0 8px 18px rgba(45, 75, 110, 0.04);
+}
+
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  height: 46px;
+  line-height: 1.2;
 }
 
 input,
