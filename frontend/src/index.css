@@ -1174,8 +1174,8 @@ body {
 .home-hero {
   color: #ffffff;
   border-radius: 20px;
-  margin-top: -34px;
-  padding: 54px 20px 20px;
+  margin-top: -18px;
+  padding: 64px 20px 20px;
   background:
     radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.25), transparent 18%),
     linear-gradient(135deg, #168fff, #006ee8);
