@@ -153,14 +153,28 @@ function App() {
     }
 
     if (loan.borrower_id === currentUser.id) {
-      return loan.lender?.first_name || loan.lender?.username || "кредитор";
+      return getUserDisplayName(loan.lender, "кредитор");
     }
 
     if (loan.lender_id === currentUser.id) {
-      return loan.borrower?.first_name || loan.borrower?.username || "заемщик";
+      return getUserDisplayName(loan.borrower, "заемщик");
     }
 
     return "";
+  }
+
+  function getUserDisplayName(userData, fallback) {
+    if (!userData) {
+      return fallback;
+    }
+
+    return (
+      userData.contact_alias ||
+      userData.display_name ||
+      userData.first_name ||
+      userData.username ||
+      fallback
+    );
   }
 
   function getLoanUserRole(loan, currentUser) {

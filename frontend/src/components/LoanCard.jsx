@@ -39,6 +39,14 @@ function formatUser(userData, fallbackId) {
     return `Пользователь #${fallbackId}`;
   }
 
+  if (userData.contact_alias) {
+    return userData.contact_alias;
+  }
+
+  if (userData.display_name) {
+    return userData.display_name;
+  }
+
   const name = userData.first_name || `Пользователь #${fallbackId}`;
   const username = userData.username;
 

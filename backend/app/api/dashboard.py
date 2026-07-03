@@ -15,6 +15,7 @@ from app.schemas.user import UserHistoryItemResponse, UserSummaryResponse
 from app.services.loan_balance_service import calculate_remaining_balance_from_values
 from app.services.user_network_service import (
     build_contact_response,
+    format_user_display_name,
     get_contact_alias_map,
     get_direct_contact_user_ids,
 )
@@ -57,12 +58,69 @@ def format_user_name(user: User | None) -> str:
     if user is None:
         return "Пользователь"
 
+    contact_alias = getattr(user, "contact_alias", None)
+    display_name = getattr(user, "display_name", None)
+
+    if contact_alias:
+        return contact_alias
+
+    if display_name:
+        return display_name
+
     name = user.first_name or f"Пользователь #{user.id}"
 
     if user.username:
         return f"{name} (@{user.username})"
 
     return name
+
+
+def apply_contact_alias_to_user(
+    user: User | None,
+    contact_alias: str | None,
+) -> None:
+    if user is None:
+        return
+
+    user.contact_alias = contact_alias
+    user.display_name = format_user_display_name(
+        user=user,
+        contact_alias=contact_alias,
+    )
+
+
+def apply_contact_aliases_to_loans(
+    db: Session,
+    loans: list[Loan],
+    current_user: User,
+) -> None:
+    contact_user_ids: set[int] = set()
+
+    for loan in loans:
+        if loan.borrower_id != current_user.id:
+            contact_user_ids.add(loan.borrower_id)
+
+        if loan.lender_id != current_user.id:
+            contact_user_ids.add(loan.lender_id)
+
+    contact_aliases = get_contact_alias_map(
+        db=db,
+        owner_user_id=current_user.id,
+        contact_user_ids=contact_user_ids,
+    )
+
+    for loan in loans:
+        borrower_alias = contact_aliases.get(loan.borrower_id)
+        lender_alias = contact_aliases.get(loan.lender_id)
+
+        apply_contact_alias_to_user(
+            user=loan.borrower,
+            contact_alias=borrower_alias,
+        )
+        apply_contact_alias_to_user(
+            user=loan.lender,
+            contact_alias=lender_alias,
+        )
 
 
 def get_pending_repayments_by_loan_id(
@@ -207,11 +265,13 @@ def get_dashboard_loans(
                 User.id,
                 User.username,
                 User.first_name,
+                User.last_name,
             ),
             joinedload(Loan.borrower).load_only(
                 User.id,
                 User.username,
                 User.first_name,
+                User.last_name,
             ),
         )
         .order_by(Loan.id.desc())
@@ -276,6 +336,12 @@ def get_dashboard_loans(
         )
 
         loans.append(loan)
+
+    apply_contact_aliases_to_loans(
+        db=db,
+        loans=loans,
+        current_user=current_user,
+    )
 
     return loans
 
