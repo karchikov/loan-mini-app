@@ -790,6 +790,7 @@ input::placeholder {
 .notification-close-button {
   flex: 0 0 auto;
   width: 26px;
+  min-width: 26px;
   height: 26px;
   min-height: 26px;
   padding: 0;
@@ -1520,6 +1521,15 @@ button:not(.notification-close-button):not(.bottom-nav-button) {
 
   .logout-button {
     width: 100%;
+  }
+
+  .notification-close-button {
+    width: 26px;
+    min-width: 26px;
+  }
+
+  .funding-confirmation-section .secondary-button {
+    margin-right: 0;
   }
 }
 

@@ -75,7 +75,7 @@ function RepaymentHistory({
       <h3>История возвратов</h3>
 
       {actionError && (
-        <p className="error-message">
+        <p className="form-error">
           {actionError}
         </p>
       )}
