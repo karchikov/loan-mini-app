@@ -623,15 +623,45 @@ function App() {
           }
         }
 
-        const dashboard = await Promise.race([
-          loadDashboard(),
-          new Promise((_, reject) => {
-            setTimeout(
-              () => reject(new Error("Dashboard loading timeout")),
-              12000,
+        let dashboard;
+
+        try {
+          dashboard = await Promise.race([
+            loadDashboard(),
+            new Promise((_, reject) => {
+              setTimeout(
+                () => reject(new Error("Dashboard loading timeout")),
+                12000,
+              );
+            }),
+          ]);
+        } catch (dashboardError) {
+          console.error(dashboardError);
+
+          authStore.clear();
+
+          const profile = await login();
+
+          if (!profile) {
+            setGlobalError(
+              "Не удалось обновить вход через Telegram"
             );
-          }),
-        ]);
+
+            return;
+          }
+
+          dashboard = await Promise.race([
+            loadDashboard(),
+            new Promise((_, reject) => {
+              setTimeout(
+                () => reject(
+                  new Error("Dashboard loading timeout after relogin")
+                ),
+                12000,
+              );
+            }),
+          ]);
+        }
 
         applyDashboardData(dashboard);
       } catch (error) {
