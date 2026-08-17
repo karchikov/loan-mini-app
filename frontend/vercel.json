@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://loan-mini-app-7qbm.onrender.com/:path*"
+    }
+  ]
+}
