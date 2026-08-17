@@ -568,15 +568,36 @@ function App() {
 
         initTelegram();
 
+        const apiUrl =
+          import.meta.env.VITE_API_URL;
+
         const token = authStore.getToken();
 
         if (!token) {
           const tg =
             window.Telegram?.WebApp;
 
+          if (!apiUrl) {
+            setGlobalError(
+              [
+                "Диагностика входа: backend URL не настроен.",
+                "Проверьте VITE_API_URL в Vercel Production.",
+                `Текущий URL: ${window.location.href}`,
+              ].join(" ")
+            );
+
+            return;
+          }
+
           if (!tg?.initData) {
             setGlobalError(
-              "Откройте приложение через Telegram"
+              [
+                "Диагностика входа: Telegram initData не получен.",
+                `Backend URL: ${apiUrl || "не настроен"}`,
+                `Telegram WebApp: ${tg ? "есть" : "нет"}`,
+                `initData length: ${tg?.initData?.length || 0}`,
+                `Текущий URL: ${window.location.href}`,
+              ].join(" ")
             );
 
             return;
@@ -599,8 +620,21 @@ function App() {
       } catch (error) {
         console.error(error);
 
+        const apiUrl =
+          import.meta.env.VITE_API_URL;
+
+        const tg =
+          window.Telegram?.WebApp;
+
         setGlobalError(
-          "Ошибка входа через Telegram"
+          [
+            "Диагностика входа: ошибка при инициализации.",
+            `Backend URL: ${apiUrl || "не настроен"}`,
+            `Telegram WebApp: ${tg ? "есть" : "нет"}`,
+            `initData length: ${tg?.initData?.length || 0}`,
+            `Ошибка: ${error?.message || "без текста"}`,
+            `Текущий URL: ${window.location.href}`,
+          ].join(" ")
         );
       } finally {
         setAppLoading(false);
