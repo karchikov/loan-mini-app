@@ -573,6 +573,15 @@ function App() {
 
         const token = authStore.getToken();
 
+        console.log("LOGIN DIAGNOSTICS", {
+          apiUrl,
+          hasTelegram: Boolean(window.Telegram),
+          hasWebApp: Boolean(window.Telegram?.WebApp),
+          initDataLength: window.Telegram?.WebApp?.initData?.length || 0,
+          hasToken: Boolean(token),
+          href: window.location.href,
+        });
+
         if (!token) {
           const tg =
             window.Telegram?.WebApp;
@@ -614,7 +623,15 @@ function App() {
           }
         }
 
-        const dashboard = await loadDashboard();
+        const dashboard = await Promise.race([
+          loadDashboard(),
+          new Promise((_, reject) => {
+            setTimeout(
+              () => reject(new Error("Dashboard loading timeout")),
+              12000,
+            );
+          }),
+        ]);
 
         applyDashboardData(dashboard);
       } catch (error) {
@@ -633,6 +650,8 @@ function App() {
             `Telegram WebApp: ${tg ? "есть" : "нет"}`,
             `initData length: ${tg?.initData?.length || 0}`,
             `Ошибка: ${error?.message || "без текста"}`,
+            `Есть token: ${Boolean(authStore.getToken()) ? "да" : "нет"}`,
+            "Если загрузка зависла, очистите вход: localStorage.removeItem('token')",
             `Текущий URL: ${window.location.href}`,
           ].join(" ")
         );
