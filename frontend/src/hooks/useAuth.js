@@ -35,7 +35,11 @@ export function useAuth() {
 
       return data;
     } catch (error) {
-      console.error(error);
+      console.error("TELEGRAM LOGIN ERROR:", {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+      });
 
       const status = error.response?.status;
       const code = error.code;

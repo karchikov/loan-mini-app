@@ -573,26 +573,14 @@ function App() {
 
         const token = authStore.getToken();
 
-        console.log("LOGIN DIAGNOSTICS", {
-          apiUrl,
-          hasTelegram: Boolean(window.Telegram),
-          hasWebApp: Boolean(window.Telegram?.WebApp),
-          initDataLength: window.Telegram?.WebApp?.initData?.length || 0,
-          hasToken: Boolean(token),
-          href: window.location.href,
-        });
-
         if (!token) {
           const tg =
             window.Telegram?.WebApp;
 
           if (!apiUrl) {
+            console.error("VITE_API_URL is not configured");
             setGlobalError(
-              [
-                "Диагностика входа: backend URL не настроен.",
-                "Проверьте VITE_API_URL в Vercel Production.",
-                `Текущий URL: ${window.location.href}`,
-              ].join(" ")
+              "Сервис временно недоступен. Попробуйте позже."
             );
 
             return;
@@ -600,13 +588,7 @@ function App() {
 
           if (!tg?.initData) {
             setGlobalError(
-              [
-                "Диагностика входа: Telegram initData не получен.",
-                `Backend URL: ${apiUrl || "не настроен"}`,
-                `Telegram WebApp: ${tg ? "есть" : "нет"}`,
-                `initData length: ${tg?.initData?.length || 0}`,
-                `Текущий URL: ${window.location.href}`,
-              ].join(" ")
+              "Не удалось получить данные Telegram. Закройте мини-приложение и откройте его снова."
             );
 
             return;
@@ -665,25 +647,12 @@ function App() {
 
         applyDashboardData(dashboard);
       } catch (error) {
-        console.error(error);
-
-        const apiUrl =
-          import.meta.env.VITE_API_URL;
-
-        const tg =
-          window.Telegram?.WebApp;
+        console.error("APP INITIALIZATION ERROR:", {
+          message: error?.message,
+        });
 
         setGlobalError(
-          [
-            "Диагностика входа: ошибка при инициализации.",
-            `Backend URL: ${apiUrl || "не настроен"}`,
-            `Telegram WebApp: ${tg ? "есть" : "нет"}`,
-            `initData length: ${tg?.initData?.length || 0}`,
-            `Ошибка: ${error?.message || "без текста"}`,
-            `Есть token: ${Boolean(authStore.getToken()) ? "да" : "нет"}`,
-            "Если загрузка зависла, очистите вход: localStorage.removeItem('token')",
-            `Текущий URL: ${window.location.href}`,
-          ].join(" ")
+          "Не удалось загрузить приложение. Проверьте подключение к интернету и попробуйте снова."
         );
       } finally {
         setAppLoading(false);

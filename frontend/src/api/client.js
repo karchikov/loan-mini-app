@@ -20,7 +20,13 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error("API ERROR:", error);
+    console.error("API ERROR:", {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      method: error.config?.method,
+      path: error.config?.url,
+    });
 
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
