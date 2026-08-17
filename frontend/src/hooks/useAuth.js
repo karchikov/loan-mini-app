@@ -37,7 +37,19 @@ export function useAuth() {
     } catch (error) {
       console.error(error);
 
-      return null;
+      const status = error.response?.status;
+      const code = error.code;
+      const message = error.message || "Telegram login failed";
+
+      throw new Error(
+        [
+          message,
+          status ? `HTTP ${status}` : null,
+          code ? `code ${code}` : null,
+        ]
+          .filter(Boolean)
+          .join(" | ")
+      );
     } finally {
       setLoading(false);
     }
